@@ -1,7 +1,7 @@
 #include "renderer.h"
 #include "console.h"
-
-#include <GLFW/glfw3.h>
+#include "glad/gl.h"
+#include <sstream>
 
 Renderer::Renderer(int height, Console& con) : m_width(height * 1.77f), m_height(height), m_title("NeuralNet Monitor"), console(con) {
 
@@ -33,6 +33,18 @@ bool Renderer::init() {
     // glfwSetWindowSizeLimits(window, 320, 180, GLFW_DONT_CARE, GLFW_DONT_CARE);
     
     glfwMakeContextCurrent(window);
+
+    // Initialize GLAD by passing GLFW's function to get process addresses
+    int version = gladLoadGL((GLADloadfunc)glfwGetProcAddress);
+    if (!version) {
+        console.log("Failed to initialize GLAD.\n");
+        return false;
+    }
+
+    std::stringstream vss;
+    vss << GLAD_VERSION_MAJOR(version) << "." << GLAD_VERSION_MINOR(version);
+    console.log("Initialized OpenGL with GLAD. OpenGL version: " + vss.str());
+
     return true;
 }
 
@@ -41,7 +53,12 @@ bool Renderer::shouldClose() const {
 }
 
 void Renderer::update() {
-    glClear(GL_COLOR_BUFFER_BIT); // Render clearing
-    glfwSwapBuffers(window);  // Swap the buffers, get the new one in. C'mon!
+    /* Render here */
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    /* Swap front and back buffers */
+    glfwSwapBuffers(window);
+
+    /* Poll for and process events */
     glfwPollEvents();
 }

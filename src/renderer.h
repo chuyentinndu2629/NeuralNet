@@ -1,6 +1,9 @@
 #pragma once
 #include <string>
+
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
+#include <glad/gl.h>
 #include "console.h"
 
 // #define ASPECT_RATIO 1.77f  // Or 16:9 in human terms
