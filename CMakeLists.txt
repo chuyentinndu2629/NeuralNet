@@ -70,17 +70,17 @@ target_link_libraries(neuralnet PRIVATE
     nlohmann_json::nlohmann_json
 )
 
-# 1. Automatically collect all shader files and track directory changes
+# 1. Automatically collect all shader files
 file(GLOB_RECURSE SHADER_FILES 
     CONFIGURE_DEPENDS 
     "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/*"
 )
 
-# 2. Create a custom target that relies on those shader files
+# 2. Use CMAKE_CURRENT_BINARY_DIR instead of $<TARGET_FILE_DIR:neuralnet>
 add_custom_target(copy_shaders ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders"
-            "$<TARGET_FILE_DIR:neuralnet>/shaders"
+            "${CMAKE_CURRENT_BINARY_DIR}/shaders"
     SOURCES ${SHADER_FILES}
     COMMENT "Syncing shaders to output directory..."
 )

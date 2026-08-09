@@ -6,6 +6,17 @@
 #include <sstream>
 #include <fstream>
 
+void pos2d::mapScreenPositions(const double& xpos, const double& ypos, const int& m_width, const int& m_height) {
+    // Alrighty. Got a snippet
+    // ss << "Mouse position: " << (2 * xpos - renderer->m_width) / renderer->m_height << ", " << (2 * ypos - renderer->m_height) / renderer->m_height;
+    
+    // Maps 0..m_width -> -1.77..+1.77
+    x = (2.0f * xpos - m_width) / m_height; 
+    
+    // Maps 0..m_height -> +1.0..-1.0 (inverted for OpenGL Y-axis)
+    y = (m_height - 2.0f * ypos) / m_height;
+}
+
 Renderer::Renderer(int height, Console& con) : m_width(height * 1.77f), m_height(height), m_title("NeuralNet Monitor"), console(con) {
 
 }
@@ -136,11 +147,39 @@ bool Renderer::loadShaders() {
     glAttachShader(m_shaderProgram, fragmentShader);
     glLinkProgram(m_shaderProgram);
 
+    // Set up coordinate space mapping
+    setOrthographicProjection(m_shaderProgram);
+
     // Clean up
     glDeleteShader(vertexShader);
     glDeleteShader(fragmentShader);
 
     return true;
+}
+
+// Gemini wrote this. I don't understand a thing.
+void Renderer::setOrthographicProjection(GLuint shaderProgram) {
+    float left   = -1.77f;
+    float right  =  1.77f;
+    float bottom = -1.00f;
+    float top    =  1.00f;
+    float near   = -1.00f;
+    float far    =  1.00f;
+
+    // Standard Orthographic Projection Matrix (Column-Major for OpenGL)
+    float orthoMatrix[16] = {
+        2.0f / (right - left), 0.0f,                  0.0f,                 0.0f,
+        0.0f,                  2.0f / (top - bottom), 0.0f,                 0.0f,
+        0.0f,                  0.0f,                 -2.0f / (far - near),  0.0f,
+        -(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0f
+    };
+
+    // Find the location of the uniform in shader
+    GLint projLoc = glGetUniformLocation(shaderProgram, "uProjection");
+    
+    // Upload matrix data to GPU
+    glUseProgram(shaderProgram);
+    glUniformMatrix4fv(projLoc, 1, GL_FALSE, orthoMatrix);
 }
 
 bool Renderer::shouldClose() const {
@@ -165,7 +204,10 @@ void Renderer::update() {
             glBufferSubData(GL_ARRAY_BUFFER, 0, m_vertices.size() * sizeof(float), m_vertices.data());
         }
 
+        // Actually using the shader program
+        glUseProgram(m_shaderProgram);
         glBindVertexArray(m_vao);
+
         glDrawArrays(GL_TRIANGLES, 0, m_vertices.size() / 3);
     }
 
@@ -206,10 +248,27 @@ void Renderer::mouseCallback(GLFWwindow *window, int button, int action, int mod
             double xpos, ypos;
             glfwGetCursorPos(window, &xpos, &ypos);
 
+            pos2d mousePoint;
+            mousePoint.mapScreenPositions(xpos, ypos, renderer->m_width, renderer->m_height);
+
             std::stringstream ss;
-            ss << "Mouse position: " << xpos << "," << ypos;
+            ss << "Mouse position: " << mousePoint.x << ", " << mousePoint.y;
+
+            // xpos: 0 -> m_width
+            // ypos: 0 -> m_height
+            // Therefore, to get a range from -1.0f to 1.0f, we need to divide m_width by 2.
+            // Then do something like: (xpos - m_width) / (m_width / 2)
 
             renderer->console.log(ss.str());
+
+            renderer->m_vertices.insert(
+                renderer->m_vertices.end(),
+                {
+                    mousePoint.x - 0.1f, mousePoint.y - 0.1f, 0.0f,
+                    mousePoint.x - 0.1f, mousePoint.y + 0.1f, 0.0f,
+                    mousePoint.x + 0.1f, mousePoint.y + 0.1f, 0.0f,
+                }
+            );
         }
     }
 }
