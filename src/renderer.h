@@ -4,7 +4,12 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/gl.h>
+#include <vector>
+
 #include "console.h"
+
+#define FRAG_SHADER_PATH "shaders/shader.frag"
+#define VERT_SHADER_PATH "shaders/shader.vert"
 
 // #define ASPECT_RATIO 1.77f  // Or 16:9 in human terms
 
@@ -22,9 +27,14 @@ class Renderer {
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
+    // Initialize the renderer
     bool init();
+
+    // Check if we should close the OpenGL window or nah.
     bool shouldClose() const;
-    void update(); // Swap buffers and poll events.
+
+    // Swap buffers and poll events. Update the frame basically.
+    void update();
 
     private:
     int m_width;
@@ -32,4 +42,29 @@ class Renderer {
     std::string m_title;
     Console& console;  // Borrowing this console, thanks
     GLFWwindow* window = nullptr;
+
+    unsigned int m_vao = 0;
+    unsigned int m_vbo = 0;
+    unsigned int m_shaderProgram = 0;
+
+    size_t m_buffersize = 1000;
+    std::vector<float> m_vertices;
+
+    // Function to process input by polling
+    void processInput();
+
+    // Read, process, import shaders at runtime
+    bool loadShaders();
+
+    // Function to process keyboard input by callback
+    static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+
+    // Function to process mouse input by callback
+    static void mouseCallback(GLFWwindow *window, int button, int action, int mods);
+
+    // Function to process mouse scroll by callback
+    static void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+
+    // Function to process mouse movement by callback
+    static void mouseMoveCallback(GLFWwindow* window, double xpos, double ypos);
 };

@@ -5,28 +5,85 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_C_STANDARD 11)
 
-add_executable(neuralnet)
-target_compile_options(neuralnet PRIVATE -Wall -Wextra -O3)
+include(FetchContent)
 
-target_sources(neuralnet PRIVATE
+# ------------------------------------------------------------------------------
+# Dependencies via FetchContent
+# ------------------------------------------------------------------------------
+
+# GLFW
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG        3.4
+)
+
+# CPR Options - Force using system curl instead of building bundled curl
+set(CPR_USE_SYSTEM_CURL ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+    cpr
+    GIT_REPOSITORY https://github.com/libcpr/cpr.git
+    GIT_TAG        1.10.5
+)
+
+FetchContent_MakeAvailable(glfw cpr)
+
+# System Packages
+find_package(OpenGL REQUIRED)
+find_package(nlohmann_json REQUIRED)
+
+# ------------------------------------------------------------------------------
+# Targets
+# ------------------------------------------------------------------------------
+
+# GLAD Static Target
+add_library(glad STATIC glad/src/gl.c)
+target_include_directories(glad PUBLIC glad/include/)
+
+# Main Executable
+add_executable(neuralnet
     src/main.cpp
     src/console.cpp
     src/renderer.cpp
-
-    glad/src/gl.c
 )
+
+target_compile_options(neuralnet PRIVATE -Wall -Wextra -O3)
 
 target_include_directories(neuralnet PRIVATE
     include/
     src/
-    glad/include/
 )
-
-# Crucial! Add GLFW and OpenGL into the packages list
-find_package(glfw3 REQUIRED)
-find_package(OpenGL REQUIRED)
 
 target_link_libraries(neuralnet PRIVATE
+    glad
     glfw
+    OpenGL::GL
+    cpr::cpr
+    nlohmann_json::nlohmann_json
 )
+
+# 1. Automatically collect all shader files and track directory changes
+file(GLOB_RECURSE SHADER_FILES 
+    CONFIGURE_DEPENDS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders/*"
+)
+
+# 2. Create a custom target that relies on those shader files
+add_custom_target(copy_shaders ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/shaders"
+            "$<TARGET_FILE_DIR:neuralnet>/shaders"
+    SOURCES ${SHADER_FILES}
+    COMMENT "Syncing shaders to output directory..."
+)
+
+# 3. Force your executable to depend on the copy task
+add_dependencies(neuralnet copy_shaders)

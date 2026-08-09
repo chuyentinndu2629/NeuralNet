@@ -1,8 +1,102 @@
 #include "console.h"
+#include "cpr/response.h"
 #include "renderer.h"
+
 #include <strings.h>
+#include <cpr/cpr.h>
+#include <fstream>
+#include <filesystem>
+#include <chrono>
+#include <nlohmann/json.hpp>
+
+namespace fs = std::filesystem;
+using nlohmann::json;
+
+#define PHYS_VECT_URL "https://api.github.com/repos/nvkelso/natural-earth-vector/contents/geojson/ne_50m_admin_0_countries.geojson"
+#define PBF_URL "https://download.geofabrik.de/asia/vietnam-latest.osm.pbf"
 
 Console console(false);
+fs::path dirPath = std::filesystem::current_path().string();
+
+bool fetchMap() {
+    cpr::Session session;
+
+    // Define a callback function or lambda to print progress
+    // Track the last time a progress update was printed
+    auto lastUpdate = std::chrono::steady_clock::now();
+
+    // Using a lambda to print progress since I am NOT downloading anything else at init.
+    session.SetOption(cpr::ProgressCallback([&](cpr::cpr_off_t downloadTotal, 
+                                                cpr::cpr_off_t downloadNow, 
+                                                cpr::cpr_off_t uploadTotal, 
+                                                cpr::cpr_off_t uploadNow, 
+                                                intptr_t userdata) -> bool {
+        if (downloadTotal > 0) {
+            auto now = std::chrono::steady_clock::now();
+            bool isComplete = (downloadNow == downloadTotal);
+            
+            // Update at most once every 100ms (10 FPS), or when the transfer completes
+            if (isComplete || std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate).count() >= 100) {
+                double percentage = (static_cast<double>(downloadNow) / downloadTotal) * 100.0;
+                
+                std::stringstream output;
+                output << "\rProgress: " << percentage << "% (" << downloadNow << "/" << downloadTotal << " bytes)" << std::flush;
+                console.print(output.str());
+                
+                lastUpdate = now;
+            }
+        }
+        return true;
+    }));
+    
+    if (fs::exists(dirPath / "vietnam.pbf")) {
+        console.log("PBF file already exists. Skipping...");
+    } else {
+        console.print("Pulling PBF file from defined URL...\n");
+        console.log(std::string("Pulling PBF file from ") + PBF_URL);
+        std::ofstream file(dirPath / "vietnam.pbf");
+
+        session.SetUrl(PBF_URL);
+        cpr::Response response = session.Download(file);
+
+        console.print("\n");
+        if (response.status_code != 200) {
+            // We are GONERS
+            console.log("Failure fetching PBF file.", DEBUG_FAIL);
+            return false;
+        }
+    }
+
+    if (fs::exists(dirPath / "world.geojson")) {
+        console.log("GeoJson file already exists. Skipping...");
+    } else {
+        console.print("Pulling GeoJson file from defined URL...\n");
+
+        console.log(std::string("Pulling GeoJson file metadata from ") + PHYS_VECT_URL);
+        std::ofstream file2(dirPath / "world.geojson");
+    
+        session.SetUrl(PHYS_VECT_URL);
+        console.print("\n");
+        cpr::Response response2 = session.Get();
+        if (response2.status_code != 200) {
+            console.log("Failure pulling GeoJson file metadata from GitHub", DEBUG_FAIL);
+            return false;
+        }
+        
+        json metadata = json::parse(response2.text);
+        console.log("Pulling GeoJson file from " + metadata["download_url"].get<std::string>());
+        session.SetUrl(metadata["download_url"].get<std::string>());
+
+        console.print("\n");
+        cpr::Response response3 = session.Download(file2);
+        if (response2.status_code != 200) {
+            console.log("Failure pulling GeoJson file from provided download URL in metadata.", DEBUG_FAIL);
+            return false;
+        }
+    }
+
+    return true;
+}
 
 int main(int argc, char *argv[]) {
     // Parse the arguments at runtime
@@ -25,9 +119,18 @@ int main(int argc, char *argv[]) {
 
     console.print("Welcome to [bi]NeuralNet[/]!\n");
 
+    // Fetch the PBF file down.
+    if (!fetchMap()) {
+        return -2;
+    } else {
+        console.log("Maps data are fetched!", DEBUG_OK);
+    }
+
+    // Run the main renderer thing.
     Renderer renderer(960, console);
 
     if (!renderer.init()) return -1;
+    else console.log("Initialized renderer object.", DEBUG_OK);
 
     while (!renderer.shouldClose()) {
         renderer.update();
