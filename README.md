@@ -12,7 +12,14 @@ Because GLAD is retarded on Arch Linux and needs to "tailor" to your current Ope
 
 Therefore, if you compile this on another distro/OS, remember what I said above.
 
-The compilation command on Arch Linux is somewhere along the line of:
+The glad compilation command on Arch Linux is somewhere along the line of:
 ```bash
 glad --api=gl:core=4.6 --out-path=./glad
 ```
+
+Compiling this project is straightforward. Just roll up CMake, then run:
+```bash
+cmake -B build
+```
+
+And now there should be ***MAGICALLY***, a new folder called `build/` in the repo's directory, in it is the Makefiles for your specified build system. Build with that build system (for instance, `make` for Unix Makefiles, etc), and you should be in the clear.
