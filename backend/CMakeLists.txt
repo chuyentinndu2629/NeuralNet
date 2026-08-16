@@ -27,7 +27,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/nlohmann/json
 )
 
-FetchContent_MakeAvailable(glfw cpr json)
+FetchContent_MakeAvailable(cpr json)
 
 # System Packages
 # find_package(OpenGL REQUIRED)
@@ -45,7 +45,6 @@ FetchContent_MakeAvailable(glfw cpr json)
 add_executable(neuralnet
     src/main.cpp
     src/console.cpp
-    src/renderer.cpp
 )
 
 target_compile_options(neuralnet PRIVATE -Wall -Wextra -O3)
