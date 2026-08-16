@@ -5,17 +5,9 @@ I am trying to create a network of infrastructure inside Vietnam, with the help 
 
 ### Prequisites
 - C++20
-- OpenGL 4.6
+- Godot 4.7.1
 
 ### Compilation
-Because GLAD is retarded on Arch Linux and needs to "tailor" to your current OpenGL version, the glad files are gonna be saved into `glad`.
-
-Therefore, if you compile this on another distro/OS, remember what I said above.
-
-The glad compilation command on Arch Linux is somewhere along the line of:
-```bash
-glad --api=gl:core=4.6 --out-path=./glad
-```
 
 Compiling this project is straightforward. Just roll up CMake, then run:
 ```bash
