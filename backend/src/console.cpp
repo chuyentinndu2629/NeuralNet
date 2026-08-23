@@ -55,6 +55,7 @@ void Console::log(std::string message, uint8_t state, bool forced) {
 
         std::cout << "\x1b[2;49;3m" << ts << " \x1b[0m" << color << " " << label << " \x1b[0m " << message << '\n';
     }
+    std::cout.flush();
 }
 
 void Console::print(std::string message) {
@@ -90,4 +91,6 @@ void Console::print(std::string message) {
     }
 
     if (!currentString.empty()) std::cout << currentString << "\x1b[0m";
+
+    std::cout.flush();
 }

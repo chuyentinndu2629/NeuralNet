@@ -5,7 +5,12 @@ I am trying to create a network of infrastructure inside Vietnam, with the help 
 
 ### Prequisites
 - C++20
-- Godot 4.7.1
+- Godot 4.7.x
+
+### Libraries
+- [CPR](https://github.com/libcpr/cpr)
+- [nlohmann/json](https://github.com/nlohmann/json)
+- [ASIO](https://github.com/chriskohlhoff/asio/)
 
 ### Compilation
 

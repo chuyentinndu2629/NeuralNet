@@ -12,7 +12,7 @@
 This class is the central console output of the whole C++ project right here.
 */
 class Console {
-    public:
+public:
     // Initialize the console. Verbosity is whether or not would `log()` be able to output logs.
     // There's nothing here to detatch so...
     Console(bool verbosity = true);

@@ -1,11 +1,99 @@
 [gd_scene format=3 uid="uid://dlex4cmcmlr2v"]
 
-[ext_resource type="Script" uid="uid://cvo6hpadbwanl" path="res://proc.gd" id="1_mqhvm"]
+[ext_resource type="Script" uid="uid://cvo6hpadbwanl" path="res://map_view.gd" id="1_mqhvm"]
+[ext_resource type="Script" uid="uid://j10rdt8he0af" path="res://point.gd" id="2_51ccw"]
+[ext_resource type="Script" uid="uid://dbr5vst47gaes" path="res://camera.gd" id="2_61tb2"]
+[ext_resource type="FontFile" uid="uid://bjw51f2n8bmn0" path="res://JetBrainsMono-Bold.ttf" id="2_oba8r"]
+[ext_resource type="FontFile" uid="uid://7y7rbrch5atk" path="res://JetBrainsMono-BoldItalic.ttf" id="3_622ag"]
+[ext_resource type="Material" uid="uid://bt48qd1ywfwr6" path="res://point.tres" id="4_l1o8s"]
+[ext_resource type="FontFile" uid="uid://coubgs2rtbuva" path="res://JetBrainsMono-Italic.ttf" id="4_vr8e8"]
+
+[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_61tb2"]
+sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
+
+[sub_resource type="Sky" id="Sky_51ccw"]
+sky_material = SubResource("ProceduralSkyMaterial_61tb2")
+
+[sub_resource type="Environment" id="Environment_l1o8s"]
+background_mode = 1
+sky = SubResource("Sky_51ccw")
+glow_enabled = true
 
 [sub_resource type="BoxMesh" id="BoxMesh_370by"]
 
-[node name="MapView" type="Node3D" unique_id=1207174137]
-script = ExtResource("1_mqhvm")
+[sub_resource type="BoxShape3D" id="BoxShape3D_370by"]
 
-[node name="Cube" type="MeshInstance3D" parent="." unique_id=2015495381]
+[node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("statusDisplay", "interfaceBackground", "templatePoint")]
+script = ExtResource("1_mqhvm")
+statusDisplay = NodePath("CanvasLayer/Control/StatusDisplay")
+interfaceBackground = NodePath("CanvasLayer/Control/Background")
+templatePoint = NodePath("Point")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=927780468]
+
+[node name="Control" type="Control" parent="CanvasLayer" unique_id=265986027]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+
+[node name="Background" type="ColorRect" parent="CanvasLayer/Control" unique_id=55275351]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+
+[node name="StatusDisplay" type="RichTextLabel" parent="CanvasLayer/Control" unique_id=1166267118]
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 572.0
+grow_vertical = 2
+mouse_filter = 2
+theme_override_fonts/normal_font = ExtResource("2_oba8r")
+theme_override_fonts/bold_font = ExtResource("2_oba8r")
+theme_override_fonts/bold_italics_font = ExtResource("3_622ag")
+theme_override_fonts/italics_font = ExtResource("4_vr8e8")
+bbcode_enabled = true
+text = "StatusDisplay"
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=256563181]
+environment = SubResource("Environment_l1o8s")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=750662280]
+transform = Transform3D(-4.371139e-08, 1, 4.371139e-08, 0, -4.371139e-08, 1, 1, 4.371139e-08, 1.9106855e-15, 0, 123.681305, 0)
+current = true
+script = ExtResource("2_61tb2")
+enabled = true
+lerpWeight = 10.0
+defaultPos = Vector3(0, 100, 0)
+defaultRotation = Vector3(-90, -90, 0)
+focusedOffset = Vector3(8.5, 8.5, 0)
+focusedRotation = Vector3(-45, 180, 0)
+
+[node name="Point" type="StaticBody3D" parent="." unique_id=1200533230 node_paths=PackedStringArray("camera")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.8704643)
+script = ExtResource("2_51ccw")
+camera = NodePath("../Camera3D")
+defaultScale = Vector3(0.5, 0.5, 0.5)
+focusedScale = Vector3(1, 1, 1)
+lerpWeight = 10.0
+
+[node name="Cube" type="MeshInstance3D" parent="Point" unique_id=2015495381]
+layers = 512
+gi_mode = 0
 mesh = SubResource("BoxMesh_370by")
+surface_material_override/0 = ExtResource("4_l1o8s")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Point" unique_id=1980518978]
+transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, 0)
+shape = SubResource("BoxShape3D_370by")
+
+[connection signal="input_event" from="Point" to="Point" method="_on_click_input_event"]

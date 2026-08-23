@@ -1,4 +1,5 @@
 #include "console.h"
+#include "socket.h"
 #include "cpr/response.h"
 // #include "renderer.h"
 
@@ -8,15 +9,16 @@
 #include <filesystem>
 #include <chrono>
 #include <nlohmann/json.hpp>
+#include <iostream>
 
 namespace fs = std::filesystem;
 using nlohmann::json;
+// using asio::ip::tcp;
 
-#define PHYS_VECT_URL "https://api.github.com/repos/nvkelso/natural-earth-vector/contents/geojson/ne_50m_admin_0_countries.geojson"
-#define PBF_URL "https://download.geofabrik.de/asia/vietnam-latest.osm.pbf"
+Console console;
+fs::path dirPath;
 
-Console console(false);
-fs::path dirPath = std::filesystem::current_path().string();
+#include "consts.h"
 
 bool fetchMap() {
     cpr::Session session;
@@ -49,12 +51,12 @@ bool fetchMap() {
         return true;
     }));
     
-    if (fs::exists(dirPath / "vietnam.pbf")) {
+    if (fs::exists(dirPath / LOCAL_PBF_PATH)) {
         console.log("PBF file already exists. Skipping...");
     } else {
         console.print("Pulling PBF file from defined URL...\n");
         console.log(std::string("Pulling PBF file from ") + PBF_URL);
-        std::ofstream file(dirPath / "vietnam.pbf");
+        std::ofstream file(dirPath / LOCAL_PBF_PATH);
 
         session.SetUrl(PBF_URL);
         cpr::Response response = session.Download(file);
@@ -67,13 +69,13 @@ bool fetchMap() {
         }
     }
 
-    if (fs::exists(dirPath / "world.geojson")) {
+    if (fs::exists(dirPath / WORLD_GEOJSON_PATH)) {
         console.log("GeoJson file already exists. Skipping...");
     } else {
         console.print("Pulling GeoJson file from defined URL...\n");
 
         console.log(std::string("Pulling GeoJson file metadata from ") + PHYS_VECT_URL);
-        std::ofstream file2(dirPath / "world.geojson");
+        std::ofstream file2(dirPath / WORLD_GEOJSON_PATH);
     
         session.SetUrl(PHYS_VECT_URL);
         console.print("\n");
@@ -99,6 +101,12 @@ bool fetchMap() {
 }
 
 int main(int argc, char *argv[]) {
+    console.setVerbosity(false); // Initialize console with verbosity off by default
+    dirPath = std::filesystem::current_path().string();
+
+    // std::cout << "Hi\n";
+    // std::cin.get();
+
     // Parse the arguments at runtime
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
@@ -126,15 +134,10 @@ int main(int argc, char *argv[]) {
         console.log("Maps data are fetched!", DEBUG_OK);
     }
 
-    // Run the main renderer thing.
-    // Renderer renderer(960, console);
-
-    // if (!renderer.init()) return -1;
-    // else console.log("Initialized renderer object.", DEBUG_OK);
-
-    // while (!renderer.shouldClose()) {
-    //     renderer.update();
-    // }
+    SocketHost server(console);
+    
+    // Blocks here until the client connects, sends messages, and eventually disconnects.
+    server.run();
 
     // ~Renderer destructor will automatically run here.
     return 0;
