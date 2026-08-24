@@ -171,6 +171,7 @@ func draw_polygon(points: PackedVector2Array, color: Color):
 	var new_mesh = st.commit()
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.mesh = new_mesh
+	mesh_instance.rotation = Vector3(0, 0, PI)
 	
 	var material: ORMMaterial3D = ORMMaterial3D.new()
 	material.albedo_color = color

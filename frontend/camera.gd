@@ -28,10 +28,15 @@ func _process(delta: float) -> void:
 		# Lerp to offset
 		if focused:
 			position = position.lerp(focused + focusedOffset, lerpWeight * delta)
-			rotation = rotation.lerp(focusedRotation, lerpWeight * delta)
+			#rotation = rotation.lerp(focusedRotation, lerpWeight * delta)
+			rotation.x = lerp_angle(rotation.x, focusedRotation.x / 180 * PI, lerpWeight * delta)
+			rotation.y = lerp_angle(rotation.y, focusedRotation.y / 180 * PI, lerpWeight * delta)
+			rotation.z = lerp_angle(rotation.z, focusedRotation.z / 180 * PI, lerpWeight * delta)
 		else:
 			position = position.lerp(defaultPos, lerpWeight * delta)
-			rotation = rotation.lerp(defaultRotation, lerpWeight * delta)
+			rotation.x = lerp_angle(rotation.x, defaultRotation.x / 180 * PI, lerpWeight * delta)
+			rotation.y = lerp_angle(rotation.y, defaultRotation.y / 180 * PI, lerpWeight * delta)
+			rotation.z = lerp_angle(rotation.z, defaultRotation.z / 180 * PI, lerpWeight * delta)
 
 func _focus(object: Node3D):
 	#if focused: focused.focused = false

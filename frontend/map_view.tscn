@@ -68,13 +68,13 @@ text = "StatusDisplay"
 environment = SubResource("Environment_l1o8s")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=750662280]
-transform = Transform3D(-4.371139e-08, 1, 4.371139e-08, 0, -4.371139e-08, 1, 1, 4.371139e-08, 1.9106855e-15, 0, 123.681305, 0)
+transform = Transform3D(-1, -7.642742e-15, 8.742278e-08, 0, -1, -8.742278e-08, 8.742278e-08, -8.742278e-08, 1, 0, 20, -20)
 current = true
 script = ExtResource("2_61tb2")
 enabled = true
 lerpWeight = 10.0
 defaultPos = Vector3(0, 100, 0)
-defaultRotation = Vector3(-90, -90, 0)
+defaultRotation = Vector3(-90, 180, 0)
 focusedOffset = Vector3(8.5, 8.5, 0)
 focusedRotation = Vector3(-45, 180, 0)
 
