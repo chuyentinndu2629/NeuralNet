@@ -1,8 +1,0 @@
-ColorRect
-RichTextLabel
-Control
-CanvasLayer
-CollisionShape3D
-StaticBody3D
-Camera3D
-MeshInstance3D
