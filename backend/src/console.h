@@ -1,5 +1,8 @@
 #pragma once
+#include <condition_variable>
 #include <cstdint>
+#include <mutex>
+#include <queue>
 #include <string>
 
 // Values for debugging. Uses with `log()` in `Console` class.
@@ -12,10 +15,11 @@
 This class is the central console output of the whole C++ project right here.
 */
 class Console {
-public:
+    public:
     // Initialize the console. Verbosity is whether or not would `log()` be able to output logs.
     // There's nothing here to detatch so...
     Console(bool verbosity = true);
+    ~Console();
 
     // Prevent copying to prevent double-freeing resources
     Console(const Console&) = delete;
@@ -49,4 +53,13 @@ public:
     void print(std::string message);
 
     bool verbose;
+
+    private:
+    void consumerLoop(); // Looping the queues
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    std::queue<std::string> queue_;
+    std::atomic<bool> running_{true};
+    std::thread worker_;
 };

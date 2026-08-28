@@ -57,7 +57,7 @@ func _process(delta: float) -> void:
 				emit_signal("data_received", message)
 
 # Returned data processing part
-# This part of the code handles when the data gets recieved, parsed, and displayed.
+# This part of the code handles when the data gets Received, parsed, and displayed.
 # Also is responsible for running query data when first connected to server
 func _proc_connection_established():
 	print("Connection established. Querying data first thing yeah")

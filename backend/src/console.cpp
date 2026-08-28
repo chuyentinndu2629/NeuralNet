@@ -2,6 +2,7 @@
 #include <iostream>  // To be normal is to be blessed
 #include <chrono>  // Time
 #include <format>  // Format the time
+#include <mutex>
 
 // Win32 exclusive: Enabling UTF-8
 #ifdef _WIN32
@@ -15,6 +16,14 @@ Console::Console(bool verbosity) {
 #endif
 
     verbose = verbosity;
+
+    worker_ = std::thread([this] { consumerLoop(); });
+}
+
+Console::~Console() {
+    running_.store(false);
+    cv_.notify_all();
+    if (worker_.joinable()) worker_.join();
 }
 
 void Console::setVerbosity(bool verbosity) {
@@ -52,10 +61,31 @@ void Console::log(std::string message, uint8_t state, bool forced) {
         auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
         // Formats directly to UTC
         std::string ts = std::format("{:%Y-%m-%d %H:%M:%S}", now);
+        std::string full = "\x1b[2;49;3m" + ts + " \x1b[0m" + color + " " + label + " \x1b[0m " + message + "\n";
+        // std::cout << "\x1b[2;49;3m" << ts << " \x1b[0m" << color << " " << label << " \x1b[0m " << message << '\n';
 
-        std::cout << "\x1b[2;49;3m" << ts << " \x1b[0m" << color << " " << label << " \x1b[0m " << message << '\n';
+        std::lock_guard<std::mutex> lock(mutex_);
+        queue_.push(std::move(full));
     }
-    std::cout.flush();
+
+    cv_.notify_one();
+}
+
+void Console::consumerLoop() {
+    while (true) {
+        std::unique_lock<std::mutex> lock(mutex_);
+        cv_.wait(lock, [this] { return !queue_.empty() || !running_; });
+
+        while (!queue_.empty()) {
+            std::string line = std::move(queue_.front());
+            queue_.pop();
+            lock.unlock();
+            std::cout << line << std::flush;   // actual I/O happens here, off the hot path
+            lock.lock();
+        }
+
+        if (!running_ && queue_.empty()) break;  // drain fully before exiting
+    }
 }
 
 void Console::print(std::string message) {
@@ -70,17 +100,17 @@ void Console::print(std::string message) {
         } else if (message[i] == ']') {
             formatting = false;
             // Let's print out all the current strings according to the current formatting tags
-            std::cout << currentString;
+            // std::cout << currentString;
 
-            if      (formattingTags == "b")  std::cout << "\x1b[1m";
-            else if (formattingTags == "i")  std::cout << "\x1b[3m";
-            else if (formattingTags == "bi") std::cout << "\x1b[3;1m";
-            else if (formattingTags == "/")  std::cout << "\x1b[0m";
+            if      (formattingTags == "b")  currentString += "\x1b[1m";
+            else if (formattingTags == "i")  currentString += "\x1b[3m";
+            else if (formattingTags == "bi") currentString += "\x1b[3;1m";
+            else if (formattingTags == "/")  currentString += "\x1b[0m";
 
             // else if (formattingTags == "bi") std::cout << "\x1b[3;1m" << currentString << "\x1b[0m";
 
-            formattingTags = "";
-            currentString = "";
+            // formattingTags = "";
+            // currentString = "";
         } else {
             if (formatting) formattingTags += message[i];
             else {
@@ -90,7 +120,14 @@ void Console::print(std::string message) {
         }
     }
 
-    if (!currentString.empty()) std::cout << currentString << "\x1b[0m";
+    currentString += "\x1b[0m";
 
-    std::cout.flush();
+    // if (!currentString.empty()) std::cout << currentString << "\x1b[0m";
+
+    // std::cout.flush();
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    queue_.push(std::move(currentString));
+    
+    cv_.notify_one();
 }

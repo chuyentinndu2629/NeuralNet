@@ -11,6 +11,7 @@ set(CMAKE_C_STANDARD 11)
 find_package(Threads REQUIRED)
 find_package(cpr REQUIRED)
 find_package(nlohmann_json REQUIRED)
+find_package(libwebsockets REQUIRED)
 
 # Standalone Asio ships headers only under MSYS2 (no CMake config, no
 # pkg-config file), so locate it manually and give it the same
@@ -76,6 +77,7 @@ add_executable(neuralnet
     src/main.cpp
     src/console.cpp
     src/socket.cpp
+    src/trafficfetcher.cpp
 )
 
 # Compiler definitions & flags
@@ -96,6 +98,7 @@ target_link_libraries(neuralnet PRIVATE
     nlohmann_json::nlohmann_json
     asio::asio
     Threads::Threads
+    websockets
 )
 
 # Windows specific sockets library requirements for network operations

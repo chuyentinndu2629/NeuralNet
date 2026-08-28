@@ -91,3 +91,9 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# API Keys
+apikeys.h
+
+# Python virtualenv
+.venv/

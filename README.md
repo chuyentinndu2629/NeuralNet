@@ -11,6 +11,7 @@ I am trying to create a network of infrastructure inside Vietnam, with the help 
 - [CPR](https://github.com/libcpr/cpr)
 - [nlohmann/json](https://github.com/nlohmann/json)
 - [ASIO](https://github.com/chriskohlhoff/asio/)
+- [libwebsocket](https://libwebsockets.org/)
 
 ### Compilation
 

@@ -13,6 +13,8 @@ public:
     ~SocketHost(); // Destructor
 
     void run(); // Start the event loop (ASIO). Stop when the client disconnects.
+
+    bool stopped();
     
 private:
     // Async operation handlers

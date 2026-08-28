@@ -1,6 +1,8 @@
 #include "console.h"
 #include "socket.h"
 #include "cpr/response.h"
+#include "trafficfetcher.h"
+#include "apikeys.h"
 // #include "renderer.h"
 
 #include <strings.h>
@@ -10,6 +12,7 @@
 #include <chrono>
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <thread>
 
 namespace fs = std::filesystem;
 using nlohmann::json;
@@ -53,6 +56,8 @@ bool fetchMap() {
     
     if (fs::exists(dirPath / LOCAL_PBF_PATH)) {
         console.log("PBF file already exists. Skipping...");
+    } else if (PBF_DISABLED) {
+        console.log("PBF file disabled in this build. Redefine `PBF_DISABLED` to change it", DEBUG_WARN);
     } else {
         console.print("Pulling PBF file from defined URL...\n");
         console.log(std::string("Pulling PBF file from ") + PBF_URL);
@@ -78,23 +83,23 @@ bool fetchMap() {
         std::ofstream file2(dirPath / WORLD_GEOJSON_PATH);
     
         session.SetUrl(PHYS_VECT_URL);
-        console.print("\n");
         cpr::Response response2 = session.Get();
         if (response2.status_code != 200) {
-            console.log("Failure pulling GeoJson file metadata from GitHub", DEBUG_FAIL);
+            console.log("\nFailure pulling GeoJson file metadata from GitHub", DEBUG_FAIL);
             return false;
         }
+        console.print("\n");
         
         json metadata = json::parse(response2.text);
         console.log("Pulling GeoJson file from " + metadata["download_url"].get<std::string>());
         session.SetUrl(metadata["download_url"].get<std::string>());
 
-        console.print("\n");
         cpr::Response response3 = session.Download(file2);
         if (response2.status_code != 200) {
-            console.log("Failure pulling GeoJson file from provided download URL in metadata.", DEBUG_FAIL);
+            console.log("\nFailure pulling GeoJson file from provided download URL in metadata.", DEBUG_FAIL);
             return false;
         }
+        console.print("\n");
     }
 
     return true;
@@ -107,17 +112,21 @@ int main(int argc, char *argv[]) {
     // std::cout << "Hi\n";
     // std::cin.get();
 
+    bool nomon = false;
+
     // Parse the arguments at runtime
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
 
         if (arg == "--help" || arg == "-h") {
-            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n");
+            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n-n / --nomon : Disable AIS / ADS-B monitoring\n");
 
             return 0; // Just displaying the help screen
         } 
         
         else if (arg == "--verbose" || arg == "-v") console.setVerbosity(true);
+
+        else if (arg == "--nomon" || arg == "-n") nomon = true;
 
         else {
             // This is not recognized.
@@ -134,10 +143,31 @@ int main(int argc, char *argv[]) {
         console.log("Maps data are fetched!", DEBUG_OK);
     }
 
+
     SocketHost server(console);
     
-    // Blocks here until the client connects, sends messages, and eventually disconnects.
-    server.run();
+    // std::thread serverThread([&server]() {
+    //     // Lambda shyts
+    //     server.run();
+    // });
+
+    if (!nomon) {
+        Fetcher fetcher(AIS_STREAM_KEY, console);
+        std::thread fetcherThread([&fetcher]() {
+            // Lambda shyts
+            fetcher.run();
+        });
+
+        // Blocks here until the client connects, sends messages, and eventually disconnects.
+        server.run();
+        
+        fetcher.stop(); // Stop the fetcher when the server stops running
+
+        if (fetcherThread.joinable()) fetcherThread.join(); // Make sure the server object's destructor is executed properly before being destroyed   
+    } else {
+        // Blocks here until the client connects, sends messages, and eventually disconnects.
+        server.run();
+    }
 
     // ~Renderer destructor will automatically run here.
     return 0;

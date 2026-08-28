@@ -7,16 +7,14 @@
 using asio::ip::tcp;
 
 SocketHost::SocketHost(Console& con) : console(con), acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::make_address(ADDR), PORT)), socket_(io_context_), signals_(io_context_, SIGINT, SIGTERM) {
-    console.log("Initializing socket host at socket " + std::string(ADDR) + ":" + std::to_string(PORT) + "...");
-
     // Start listening for signals
     handle_signals();
 
+    console.log("Initialized socket host at socket " + std::string(ADDR) + ":" + std::to_string(PORT), DEBUG_OK);
     wait_for_client(); // Start waiting for a client to connect
 }
 
 SocketHost::~SocketHost() {
-    console.log("Shutting down socket host...");
     // Detatch console? Nahh its fine
     // Let me close the socket
     if (socket_.is_open()) {
@@ -26,14 +24,16 @@ SocketHost::~SocketHost() {
     if (acceptor_.is_open()) {
         acceptor_.close();
     }
+
+    console.log("Shut down socket host", DEBUG_OK);
 }
 
 void SocketHost::handle_signals() {
     signals_.async_wait([this](std::error_code ec, int signal_number) {
         if (!ec) {
             // std::stringstream ss;
-            // ss << "Recieved signal " << std::format();
-            console.log("Recieved signal " + std::format("{:#x}", signal_number));
+            // ss << "Received signal " << std::format();
+            console.log("Received signal " + std::format("{:#x}", signal_number), DEBUG_WARN);
 
             // This safely stops the event loop, causing io_context_.run() to return.f
             io_context_.stop();
@@ -41,7 +41,12 @@ void SocketHost::handle_signals() {
     });
 }
 
+bool SocketHost::stopped() {
+    return io_context_.stopped();
+}
+
 void SocketHost::run() {
+    console.log("Running SocketHost");
     io_context_.run(); // Start the ASIO event loop
 }
 
@@ -73,7 +78,7 @@ void SocketHost::do_read() {
             do_write(ret); // Echo the data back to the client
         } else {
             if (ec != asio::error::eof) console.log("Error reading from client: " + ec.message(), DEBUG_FAIL);
-            else console.log("EOF Recieved. Connection severed.", DEBUG_WARN);
+            else console.log("EOF Received. Connection severed.", DEBUG_WARN);
             // Clean up the closed socket
             socket_.close();
             // Start listening for a new client

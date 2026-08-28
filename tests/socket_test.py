@@ -21,7 +21,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cli:
 
             received_data = bytearray()
             while True:
-                # Recieve response
+                # Receive response
                 data = cli.recv(BUFSIZE)
                 if data.endswith("\nEND\n".encode('utf-8')):
                     received_data += data[:-5]
@@ -29,7 +29,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as cli:
                 else:
                     received_data += data
 
-            print(f"Recieved: {received_data.decode('utf-8')}")
+            print(f"Received: {received_data.decode('utf-8')}")
         except Exception as e:
             traceback.print_exc()
             break
