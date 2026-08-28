@@ -1,10 +1,10 @@
-#include "console.h"
-#include "socket.h"
-#include "cpr/response.h"
-#include "trafficfetcher.h"
-#include "apikeys.h"
+#include "console.hpp"
+#include "socket.hpp"
+#include "trafficfetcher.hpp"
+#include "apikeys.hpp"
 // #include "renderer.h"
 
+#include "cpr/response.h"
 #include <strings.h>
 #include <cpr/cpr.h>
 #include <fstream>
@@ -21,7 +21,7 @@ using nlohmann::json;
 Console console;
 fs::path dirPath;
 
-#include "consts.h"
+#include "consts.hpp"
 
 bool fetchMap() {
     cpr::Session session;

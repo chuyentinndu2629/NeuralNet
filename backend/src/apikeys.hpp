@@ -1,0 +1,1 @@
+#define AIS_STREAM_KEY "abfe30084e4c2706605b5e6f6a56a8000b45fb2b"

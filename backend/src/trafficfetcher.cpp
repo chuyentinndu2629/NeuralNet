@@ -1,4 +1,4 @@
-#include "trafficfetcher.h"
+#include "trafficfetcher.hpp"
 
 #include <libwebsockets.h>
 #include <vector>

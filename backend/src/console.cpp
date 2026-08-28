@@ -1,4 +1,4 @@
-#include "console.h"
+#include "console.hpp"
 #include <iostream>  // To be normal is to be blessed
 #include <chrono>  // Time
 #include <format>  // Format the time
