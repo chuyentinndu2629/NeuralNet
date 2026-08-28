@@ -1,0 +1,7 @@
+# Handle line endings automatically for text files and force LF
+* text=auto eol=lf
+
+# Explicitly mark binary files so Git doesn't modify them
+*.png binary
+*.jpg binary
+*.gif binary
