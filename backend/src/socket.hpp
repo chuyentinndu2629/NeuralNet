@@ -8,7 +8,7 @@
 using asio::ip::tcp;
 
 class SocketHost : public std::enable_shared_from_this<SocketHost> {
-public:
+    public:
     SocketHost(Console& con);
     ~SocketHost(); // Destructor
 
@@ -16,11 +16,11 @@ public:
 
     bool stopped();
     
-private:
+    private:
     // Async operation handlers
     void wait_for_client();
     void do_read();
-    void do_write(std::string msg);
+    void do_write(const std::string& msg);
 
     // Setup the signal handler (SIGINT, SIGTERM)
     void handle_signals();

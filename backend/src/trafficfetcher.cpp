@@ -7,7 +7,9 @@ Console* Fetcher::g_logConsole = nullptr; // Gotta initialize this static variab
                                           // cuz just declaring it in the class isnt enough and
                                           // its already UNDEFINED
 
-Fetcher::Fetcher(const std::string& __ais_stream_api_key, Console& con) : __ais_stream_api_key(__ais_stream_api_key), console(con) {
+Fetcher::Fetcher(const std::string& __ais_stream_api_key, Console& con, const bool& nocompression) 
+: __ais_stream_api_key(__ais_stream_api_key), console(con), nocompression(nocompression) {
+
     g_logConsole = &console;
 
     ccinfo.opaque_user_data = this;
@@ -49,7 +51,7 @@ void Fetcher::run() {
     info.protocols = protocols;
     info.gid = -1;
     info.uid = -1;
-    info.extensions = extensions; // Enable some extensions
+    if (!nocompression) info.extensions = extensions; // Enable some extensions
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT; // Enable SSL globally
 
     context = lws_create_context(&info);
@@ -101,8 +103,12 @@ int Fetcher::callback_ws(struct lws *wsi, enum lws_callback_reasons reason,
             fetcher->rxBuffer.append(static_cast<char*>(in), len);
 
             if (lws_is_final_fragment(wsi)) {
-                fetcher->console.log("LWS: callback_ws(): Data received: " + fetcher->rxBuffer);
+                // fetcher->console.log("LWS: callback_ws(): Data received: " + fetcher->rxBuffer);
+                
+                json data = json::parse(fetcher->rxBuffer);
+
                 fetcher->rxBuffer.clear();
+                fetcher->processAISData(data);
             }
             break;
         }
@@ -140,4 +146,35 @@ int Fetcher::callback_ws(struct lws *wsi, enum lws_callback_reasons reason,
 
 void Fetcher::stop() {
     stopped = true;
+}
+
+void Fetcher::processAISData(const json& data) {
+    if (data["MessageType"] == "SubscriptionConfirmation") {
+        // This has NO metadata.
+        // And also, this is just a confirmation that the connection has been established (for real this time) sucessfully.
+        if (data["Message"]["CompressionEnabled"].get<bool>() == false) {
+            console.log("Compression is not enabled, confirmed from endpoint. Data usage may increase.", DEBUG_WARN);
+        } else {
+            console.log("Compression enabled and confirmed from endpoint.", DEBUG_OK);
+        }
+    } else {
+        // As long as it ISNT SubscriptionConfirmation. SubscriptionConfirmation DOES NOT have any metadata.
+        // Therefore, it is USELESS except confirming that the connection has been made
+
+        // Now, MetaData EXISTS, therefore, I will update the metadata to the map containing these things' data
+        unsigned int mmsi = data["MetaData"]["MMSI"].get<unsigned int>();
+        ship currentShip;
+        currentShip.mmsi = mmsi;
+
+        if (aisVehicles.count(mmsi)) {
+            currentShip = aisVehicles[mmsi];
+
+            console.log("New ship discovered: " + data["MetaData"]["ShipName"].get<std::string>());
+        }
+
+        currentShip.lat = data["MetaData"]["latitude"].get<double>();
+        currentShip.lon = data["MetaData"]["longitude"].get<double>();
+
+        currentShip.lastUpdated = static_cast<unsigned long>(parseTimestamp(data["MetaData"]["time_utc"].get<std::string>()));
+    }
 }

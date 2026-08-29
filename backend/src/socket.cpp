@@ -87,12 +87,12 @@ void SocketHost::do_read() {
     });
 }
 
-void SocketHost::do_write(std::string msg) {
+void SocketHost::do_write(const std::string& msg) {
     // Make sure the data aint gonna be destroyed when its out of scope, so that big ass msgs wont disappear when async_write is
     // trying to stream the data.
 
     // This basically move the buffer (stealing its pointer) without copying the whole payload
-    auto data_ptr = std::make_shared<std::string>(std::move(msg + "\nEND\n"));
+    auto data_ptr = std::make_shared<std::string>(std::string(msg + "\nEND\n"));
     
     asio::async_write(socket_, asio::buffer(*data_ptr), 
         [this, data_ptr](std::error_code ec, std::size_t /*length*/) {

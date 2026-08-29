@@ -7,7 +7,7 @@
 // Socket connection configuration
 #define PORT 6253
 #define ADDR "127.0.0.1"
-#define BUFFER_SIZE 8192
+#define BUFFER_SIZE 65536
 
 // Some other configurations
 #define PBF_DISABLED true

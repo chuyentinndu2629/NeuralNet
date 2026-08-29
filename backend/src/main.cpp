@@ -113,13 +113,14 @@ int main(int argc, char *argv[]) {
     // std::cin.get();
 
     bool nomon = false;
+    bool nocompression = false;
 
     // Parse the arguments at runtime
     for (int i = 1; i < argc; i++) {
         std::string arg(argv[i]);
 
         if (arg == "--help" || arg == "-h") {
-            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n-n / --nomon : Disable AIS / ADS-B monitoring\n");
+            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n-n / --nomon : Disable AIS / ADS-B monitoring\n-nc / --nocompression : Disable compression in LWS (used in AIS fetching)");
 
             return 0; // Just displaying the help screen
         } 
@@ -127,6 +128,8 @@ int main(int argc, char *argv[]) {
         else if (arg == "--verbose" || arg == "-v") console.setVerbosity(true);
 
         else if (arg == "--nomon" || arg == "-n") nomon = true;
+
+        else if (arg == "--nocompression" || arg == "--nc") nocompression = true;
 
         else {
             // This is not recognized.
