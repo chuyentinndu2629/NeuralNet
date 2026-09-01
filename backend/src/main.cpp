@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
     // });
 
     if (!nomon) {
-        Fetcher fetcher(AIS_STREAM_KEY, console);
+        Fetcher fetcher(AIS_STREAM_KEY, console, nocompression, dirPath / SAVED_DISCOVERY_PATH);
         std::thread fetcherThread([&fetcher]() {
             // Lambda shyts
             fetcher.run();

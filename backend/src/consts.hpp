@@ -9,5 +9,8 @@
 #define ADDR "127.0.0.1"
 #define BUFFER_SIZE 65536
 
+// Fetcher configuration
+#define SAVED_DISCOVERY_PATH "discovered.json"  // Discovered AIS vessels and ADS-B aircrafts
+
 // Some other configurations
 #define PBF_DISABLED true
