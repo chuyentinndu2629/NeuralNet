@@ -18,7 +18,7 @@ func _process(delta: float) -> void:
 	
 	#pass
 
-# Function to detect mouse input.
-func _on_click_input_event(camera: Node, event: InputEvent, event_position: Vector3, normal: Vector3, shape_idx: int) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		camera._focus(self)
+## Function to detect mouse input.
+#func _on_click_input_event(camera: Node, event: InputEvent, event_position: Vector3, normal: Vector3, shape_idx: int) -> void:
+	#if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		#camera._focus(self)

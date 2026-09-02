@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://dlex4cmcmlr2v"]
 
 [ext_resource type="Script" uid="uid://cvo6hpadbwanl" path="res://map_view.gd" id="1_mqhvm"]
-[ext_resource type="Script" uid="uid://j10rdt8he0af" path="res://point.gd" id="2_51ccw"]
 [ext_resource type="Script" uid="uid://dbr5vst47gaes" path="res://camera.gd" id="2_61tb2"]
 [ext_resource type="FontFile" uid="uid://bjw51f2n8bmn0" path="res://JetBrainsMono-Bold.ttf" id="2_oba8r"]
 [ext_resource type="FontFile" uid="uid://7y7rbrch5atk" path="res://JetBrainsMono-BoldItalic.ttf" id="3_622ag"]
@@ -22,13 +21,12 @@ glow_enabled = true
 
 [sub_resource type="BoxMesh" id="BoxMesh_370by"]
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_370by"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_wu3fl"]
 
-[node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("statusDisplay", "interfaceBackground", "templatePoint")]
+[node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("statusDisplay", "interfaceBackground")]
 script = ExtResource("1_mqhvm")
 statusDisplay = NodePath("CanvasLayer/Control/StatusDisplay")
 interfaceBackground = NodePath("CanvasLayer/Control/Background")
-templatePoint = NodePath("Point")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=927780468]
 
@@ -75,25 +73,19 @@ enabled = true
 lerpWeight = 10.0
 defaultPos = Vector3(0, 100, 0)
 defaultRotation = Vector3(-90, 180, 0)
-focusedOffset = Vector3(8.5, 8.5, 0)
+focusedOffset = Vector3(0, 8.5, -8.5)
 focusedRotation = Vector3(-45, 180, 0)
+zoomStep = 0.1
 
-[node name="Point" type="StaticBody3D" parent="." unique_id=1200533230 node_paths=PackedStringArray("camera")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 4.8704643)
-script = ExtResource("2_51ccw")
-camera = NodePath("../Camera3D")
-defaultScale = Vector3(0.5, 0.5, 0.5)
-focusedScale = Vector3(1, 1, 1)
-lerpWeight = 10.0
+[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=350179945]
+visible = false
 
-[node name="Cube" type="MeshInstance3D" parent="Point" unique_id=2015495381]
+[node name="Cube" type="MeshInstance3D" parent="StaticBody3D" unique_id=2015495381]
 layers = 512
 gi_mode = 0
 mesh = SubResource("BoxMesh_370by")
 surface_material_override/0 = ExtResource("4_l1o8s")
 
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Point" unique_id=1980518978]
+[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1925784997]
 transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, 0)
-shape = SubResource("BoxShape3D_370by")
-
-[connection signal="input_event" from="Point" to="Point" method="_on_click_input_event"]
+shape = SubResource("BoxShape3D_wu3fl")

@@ -97,3 +97,6 @@ apikeys.hpp
 
 # Python virtualenv
 .venv/
+
+# VSCode
+.vscode/

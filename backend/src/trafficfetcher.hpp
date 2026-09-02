@@ -11,7 +11,7 @@
 using nlohmann::json;
 namespace fs = std::filesystem;
 
-#define MESSAGE_TIMEOUT 10 // in seconds
+#define MESSAGE_TIMEOUT 5 // in seconds
 
 // AIS exclusive
 struct shipDimension {
@@ -31,8 +31,8 @@ struct classBData {
 
     // because class B ships are usually not registered with an IMO number, we got these.
     std::string vendorIDName = "";
-    std::string vendorIDModel = "";
-    std::string vendorIDSerial = "";
+    unsigned int vendorIDModel = 0;
+    unsigned int vendorIDSerial = 0;
 };
 
 struct ship {
@@ -49,7 +49,7 @@ struct ship {
 
     double lat = 0, lon = 0; // latitude, longtitude.
     uint8_t navStatus = 15; // navigational status (default to UNDEFINED)
-    double maximumStaticDrought = -1; // self explanatory
+    double maximumStaticDraught = -1; // self explanatory
 
     int rot = 0; // rate of turn. i dont fucking know how this works. but thats GODOT's problem
     double sog = 0; // speed over ground (knots)
@@ -120,6 +120,9 @@ class Fetcher {
 
     // Vehicles hashmap, containing the vehicles and their respective metadatas
     std::map<unsigned int, ship> aisVessels; // MMSI, ship data
+
+    void loadDiscoveredData();
+    void saveDiscoveredData();
 
     // This function will process the received data from LWS that we got from AIS Stream.
     // Thank god AIS Stream exists.

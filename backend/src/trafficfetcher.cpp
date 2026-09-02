@@ -25,15 +25,23 @@ Fetcher::Fetcher(const std::string& __ais_stream_api_key, Console& con, const bo
 
     aisPayload = json::object();
     aisPayload["APIKey"] = __ais_stream_api_key;
-    aisPayload["BoundingBoxes"] = json::parse("[[[23.4, 102.1], [5.5, 115.5]]]");
+    aisPayload["BoundingBoxes"] = json::parse("[[[-90, -180], [90, 180]]]");
 
     console.log("Loaded JSON payload: " + aisPayload.dump(), DEBUG_OK);
+
+    loadDiscoveredData();
 
     rxBuffer.clear();
 }
 
 Fetcher::~Fetcher() { // TODO: We got save, gotta read them too.
     // Destructor
+    saveDiscoveredData();
+
+    console.log("Destructed Fetcher", DEBUG_OK);
+}
+
+void Fetcher::saveDiscoveredData() {
     // Let me save the discovered set here.
     std::ofstream file(savedDiscoveryPath);
     json discoveredJson;
@@ -61,7 +69,7 @@ Fetcher::~Fetcher() { // TODO: We got save, gotta read them too.
         currentShipJson["Latitude"]             = vesselEntry.second.lat;
         currentShipJson["Longtitude"]           = vesselEntry.second.lon;
         currentShipJson["NavigationalStatus"]   = vesselEntry.second.navStatus;
-        currentShipJson["MaximumStaticDrought"] = vesselEntry.second.maximumStaticDrought;
+        currentShipJson["MaximumStaticDraught"] = vesselEntry.second.maximumStaticDraught;
 
         currentShipJson["ROT"]         = vesselEntry.second.rot;
         currentShipJson["SOG"]         = vesselEntry.second.sog;
@@ -87,20 +95,83 @@ Fetcher::~Fetcher() { // TODO: We got save, gotta read them too.
 
         currentShipJson["AssignedMode"] = vesselEntry.second.assignedMode;
 
-        discoveredJson[std::to_string(vesselEntry.first)] = currentShipJson;
+        discoveredJson["AIS"][std::to_string(vesselEntry.first)] = currentShipJson;
     }
     
     if (!file.is_open()) {
         console.log("Cannot open file at " + savedDiscoveryPath.string(), DEBUG_FAIL);
-        goto done;
+        return;
     }
     
     file << discoveredJson.dump();
     console.log("Saved discovered set to " + savedDiscoveryPath.string(), DEBUG_OK);
     file.close();
+}
 
-    done:
-    console.log("Destructed Fetcher", DEBUG_OK);
+void Fetcher::loadDiscoveredData() {
+    std::ifstream file(savedDiscoveryPath);
+    json discoveredJson;
+    
+    if (!file.is_open()) {
+        console.log("Cannot open file at " + savedDiscoveryPath.string(), DEBUG_FAIL);
+        return;
+    }
+
+    discoveredJson = json::parse(file);
+
+    for (const auto& shipEntry : discoveredJson["AIS"].items()) {
+        ship currentShip;
+
+        currentShip.mmsi       = shipEntry.value()["MMSI"];
+        currentShip.imo        = shipEntry.value()["IMO"];
+        currentShip.aisVersion = shipEntry.value()["AISVersion"];
+        currentShip.shipName   = shipEntry.value()["Name"];
+        currentShip.callSign   = shipEntry.value()["CallSign"];
+        currentShip.shipType   = shipEntry.value()["Type"];
+
+        currentShip.dimension.length = shipEntry.value()["Dimension"]["Length"];
+        currentShip.dimension.beam   = shipEntry.value()["Dimension"]["Beam"];
+
+        currentShip.eta.month  = shipEntry.value()["ETA"]["Month"];
+        currentShip.eta.day    = shipEntry.value()["ETA"]["Day"];
+        currentShip.eta.hour   = shipEntry.value()["ETA"]["Hour"];
+        currentShip.eta.minute = shipEntry.value()["ETA"]["Minute"];
+
+        currentShip.dest = shipEntry.value()["Destination"];
+
+        currentShip.lat                  = shipEntry.value()["Latitude"];
+        currentShip.lon                  = shipEntry.value()["Longtitude"];
+        currentShip.navStatus            = shipEntry.value()["NavigationalStatus"];
+        currentShip.maximumStaticDraught = shipEntry.value()["MaximumStaticDraught"];
+
+        currentShip.rot         = shipEntry.value()["ROT"];
+        currentShip.sog         = shipEntry.value()["SOG"];
+        currentShip.cog         = shipEntry.value()["COG"];
+        currentShip.trueHeading = shipEntry.value()["TrueHeading"];
+
+        currentShip.lastUpdated = shipEntry.value()["LastUpdated"];
+
+        currentShip.positionAccuracy = shipEntry.value()["PositionAccuracy"];
+        currentShip.specialManoeuvre = shipEntry.value()["SpecialManoeuvre"];
+        currentShip.raim             = shipEntry.value()["Raim"];
+        currentShip.fixType          = shipEntry.value()["FixType"];
+        currentShip.dte              = shipEntry.value()["DTE"];
+
+        currentShip.classB.unit           = shipEntry.value()["ClassB"]["Unit"];
+        currentShip.classB.display        = shipEntry.value()["ClassB"]["Display"];
+        currentShip.classB.dsc            = shipEntry.value()["ClassB"]["DSC"];
+        currentShip.classB.band           = shipEntry.value()["ClassB"]["Band"];
+        currentShip.classB.msg22          = shipEntry.value()["ClassB"]["Msg22"];
+        currentShip.classB.vendorIDName   = shipEntry.value()["ClassB"]["VendorIDName"];
+        currentShip.classB.vendorIDModel  = shipEntry.value()["ClassB"]["VendorIDModel"];
+        currentShip.classB.vendorIDSerial = shipEntry.value()["ClassB"]["vendorIDSerial"];
+
+        currentShip.assignedMode = shipEntry.value()["AssignedMode"];
+
+        aisVessels[std::stoi(shipEntry.key())] = currentShip;
+    }
+
+    console.log("Parsed last session's discovered data.", DEBUG_OK);
 }
 
 void Fetcher::lws_log_emit(int level, const char *line) {
@@ -207,12 +278,12 @@ int Fetcher::callback_ws(struct lws *wsi, enum lws_callback_reasons reason,
                     json data = json::parse(fetcher->rxBuffer);
                     fetcher->processAISData(data);
                 } catch (const nlohmann::json::exception& e) {
-                    fetcher->console.log(std::string("JSON error: ") + e.what(), DEBUG_FAIL);
+                    fetcher->console.log(std::string("LWS: Received data JSON parsing error: ") + e.what() + ". Given string: " + fetcher->rxBuffer, DEBUG_FAIL);
                     // Force reconnect on corrupted payload
                     // fetcher->reconnectRequested.store(true);
                     // lws_cancel_service(fetcher->context);
                 } catch (const std::exception& e) {
-                    fetcher->console.log(std::string("Unexpected error: ") + e.what(), DEBUG_FAIL);
+                    fetcher->console.log(std::string("LWS: Received data JSON parsing unexpected error: ") + e.what(), DEBUG_FAIL);
                     // fetcher->reconnectRequested.store(true);
                     // lws_cancel_service(fetcher->context);
                 }
@@ -262,12 +333,12 @@ void Fetcher::processAISData(const json& data) {
         // This has NO metadata.
         // And also, this is just a confirmation that the connection has been established (for real this time) sucessfully.
         if (data["Message"]["CompressionEnabled"].get<bool>() == false) {
-            console.log("Compression is not enabled, confirmed from endpoint. Starting from Sep 2026, uncompressed connections will be subject to per-user bandwidth limits, and messages exceeding those limits will be dropped (by AIS Stream). Data usage may increase.", DEBUG_WARN);
+            console.log("AIS[LWS]: Compression is not enabled, confirmed from endpoint. Starting from Sep 2026, uncompressed connections will be subject to per-user bandwidth limits, and messages exceeding those limits will be dropped (by AIS Stream). Data usage may increase.", DEBUG_WARN);
         } else {
-            console.log("Compression enabled and confirmed from endpoint.", DEBUG_OK);
+            console.log("AIS[LWS]: Compression enabled and confirmed from endpoint.", DEBUG_OK);
         }
     } else if (data["MessageType"] == "UnknownMessage") {
-        console.log("Message cannot be processed at endpoint. Error: " + data["Message"]["Error"].get<std::string>(), DEBUG_FAIL);
+        console.log("AIS[LWS]: Message cannot be processed at endpoint. Error: " + data["Message"]["Error"].get<std::string>(), DEBUG_FAIL);
     } else {
         // If we are talking about a station right now, we ignore it, that's for the vessels, we ARE NOT a vessel
         if (data["MessageType"] == "BaseStationReport") {
@@ -279,7 +350,7 @@ void Fetcher::processAISData(const json& data) {
 
         // Now, MetaData EXISTS, therefore, I will update the metadata to the map containing these things' data
         unsigned int mmsi = data["MetaData"]["MMSI"].get<unsigned int>();
-        console.log("Received " + data["MessageType"].get<std::string>() + " from " + std::to_string(mmsi));
+        console.log("AIS[LWS]: Received " + data["MessageType"].get<std::string>() + " from " + std::to_string(mmsi));
 
         ship currentShip;
         currentShip.mmsi = mmsi;
@@ -287,7 +358,7 @@ void Fetcher::processAISData(const json& data) {
         if (aisVessels.count(mmsi)) {
             currentShip = aisVessels[mmsi];
         } else {
-            console.log("New ship discovered: " + data["MetaData"]["ShipName"].get<std::string>() + " (" + std::to_string(mmsi) + ")", DEBUG_OK);
+            // console.log("New ship discovered: " + data["MetaData"]["ShipName"].get<std::string>() + " (" + std::to_string(mmsi) + ")", DEBUG_OK);
         }
 
         currentShip.lat = data["MetaData"]["latitude"].get<double>();
@@ -373,8 +444,10 @@ void Fetcher::processAISData(const json& data) {
             currentShip.dte = message["Dte"];
 
             // Dimensions will fallback to 0 if a key is MISSIN'
-            currentShip.dimension.length = message["Dimension"].value("A", 0) + message["Dimension"].value("B", 0);
-            currentShip.dimension.beam   = message["Dimension"].value("C", 0) + message["Dimension"].value("D", 0);
+            if (!message["Dimension"]["A"].is_null() && !message["Dimension"]["B"].is_null()) 
+                currentShip.dimension.length = message["Dimension"]["A"].get<unsigned int>() + message["Dimension"]["B"].get<unsigned int>();
+            if (!message["Dimension"]["C"].is_null() && !message["Dimension"]["D"].is_null())
+                currentShip.dimension.beam   = message["Dimension"]["C"].get<unsigned int>() + message["Dimension"]["D"].get<unsigned int>();
 
             currentShip.assignedMode = message["AssignedMode"];
         } else if (data["MessageType"] == "LongRangeAisBroadcastMessage") {
@@ -406,39 +479,50 @@ void Fetcher::processAISData(const json& data) {
             
             currentShip.fixType = message["FixType"];
 
-            currentShip.dimension.length = message["Dimension"].value("A", 0) + message["Dimension"].value("B", 0);
-            currentShip.dimension.beam   = message["Dimension"].value("C", 0) + message["Dimension"].value("D", 0);
+            if (!message["Dimension"]["A"].is_null() && !message["Dimension"]["B"].is_null()) 
+                currentShip.dimension.length = message["Dimension"]["A"].get<unsigned int>() + message["Dimension"]["B"].get<unsigned int>();
+            if (!message["Dimension"]["C"].is_null() && !message["Dimension"]["D"].is_null())
+                currentShip.dimension.beam   = message["Dimension"]["C"].get<unsigned int>() + message["Dimension"]["D"].get<unsigned int>();
 
             currentShip.eta.month  = message["Eta"]["Month"];
             currentShip.eta.day    = message["Eta"]["Day"];
             currentShip.eta.hour   = message["Eta"]["Hour"];
             currentShip.eta.minute = message["Eta"]["Minute"];
 
-            currentShip.maximumStaticDrought = message["MaximumStaticDraught"];
+            currentShip.maximumStaticDraught = message["MaximumStaticDraught"];
             currentShip.dest = message["Destination"];
             currentShip.dte = message["Dte"];
         } else if (data["MessageType"] == "StaticDataReport") {
             currentShip.mmsi = message["UserID"];
 
             std::string targetReport;
-            if (message["PartNumber"]) targetReport = "ReportB";
-            else                       targetReport = "ReportA";
+            if (message["PartNumber"]) {
+                targetReport = "ReportB";
+                
+                if (!message[targetReport]["Valid"].get<bool>()) return;
 
-            if (!message[targetReport]["Valid"].get<bool>()) return;
+                if (!message[targetReport]["ShipType"].is_null()) currentShip.shipType = message[targetReport]["ShipType"];
+                if (!message[targetReport]["CallSign"].is_null()) currentShip.callSign = message[targetReport]["CallSign"];
 
-            currentShip.shipType = message[targetReport]["ShipType"];
-            currentShip.callSign = message[targetReport]["CallSign"];
+                if (!message[targetReport]["FixType"].is_null()) currentShip.fixType = message[targetReport]["FixType"];
 
-            currentShip.fixType = message[targetReport]["FixType"];
+                if (!message[targetReport]["VendorIDName"].is_null())   currentShip.classB.vendorIDName   = message[targetReport]["VendorIDName"];
+                if (!message[targetReport]["VenderIDModel"].is_null())  currentShip.classB.vendorIDModel  = message[targetReport]["VenderIDModel"];
+                if (!message[targetReport]["VenderIDSerial"].is_null()) currentShip.classB.vendorIDSerial = message[targetReport]["VenderIDSerial"];
 
-            currentShip.classB.vendorIDName   = message[targetReport]["VendorIDName"];
-            currentShip.classB.vendorIDModel  = message[targetReport]["VenderIDModel"];
-            currentShip.classB.vendorIDSerial = message[targetReport]["VenderIDSerial"];
+                if (!message[targetReport]["Dimension"]["A"].is_null() && !message[targetReport]["Dimension"]["B"].is_null()) 
+                    currentShip.dimension.length = message[targetReport]["Dimension"]["A"].get<unsigned int>() + message[targetReport]["Dimension"]["B"].get<unsigned int>();
+                if (!message[targetReport]["Dimension"]["C"].is_null() && !message[targetReport]["Dimension"]["D"].is_null())
+                    currentShip.dimension.beam   = message[targetReport]["Dimension"]["C"].get<unsigned int>() + message[targetReport]["Dimension"]["D"].get<unsigned int>();
+            } else {
+                targetReport = "ReportA";
 
-            currentShip.dimension.length = message[targetReport]["Dimension"].value("A", 0) + message[targetReport]["Dimension"].value("B", 0);
-            currentShip.dimension.beam   = message[targetReport]["Dimension"].value("C", 0) + message[targetReport]["Dimension"].value("D", 0);
+                if (!message[targetReport]["Valid"].get<bool>()) return;
+
+                if (!message[targetReport]["Name"].is_null()) currentShip.shipName = message[targetReport]["Name"];
+            }
         } else {
-            console.log("Received unknown message type: " + data["MessageType"].get<std::string>(), DEBUG_WARN);
+            console.log("AIS[LWS]: Received unknown message type: " + data["MessageType"].get<std::string>(), DEBUG_WARN);
         }
 
         // Saving into the discovered map

@@ -12,6 +12,10 @@ signal data_received(message: String)
 
 @export var templatePoint: Node3D
 
+# --- Outline style controls ---
+#@export var outline_color: Color = Color.WHITE
+@export var line_width: float = 0.05
+
 var tcp_client: StreamPeerTCP = StreamPeerTCP.new()
 var last_status: int = StreamPeerTCP.STATUS_NONE
 
@@ -84,24 +88,16 @@ func _reconstruct_world(data: Dictionary):
 	
 	for country in data["features"]:
 		#print(country["properties"]["ADMIN"])
-		var color: Color = Color.from_hsv(randf(), 0.5, 1.0)
+		var outline_color: Color = Color.from_hsv(randf(), 0.4, 1.0)
 		
 		if country["geometry"]["type"] == "Polygon":
-			#var vertices: PackedVector2Array
 			for coords_set in country["geometry"]["coordinates"]:
 				var vertices: PackedVector2Array
 				
 				for coords in coords_set:
-					#print(coords)
 					vertices.append(Vector2(coords[0], coords[1]))
 					
-					#var newPoint = templatePoint.call_deferred("duplicate", true)
-					#newPoint.position = Vector3(coords[0], 0, coords[1])
-#
-					##self.add_child(newPoint)
-					#call_deferred("add_child", newPoint)
-					
-				draw_polygon(vertices, color)
+				draw_outline(vertices, outline_color, line_width)
 
 		elif country["geometry"]["type"] == "MultiPolygon":
 			for polygon in country["geometry"]["coordinates"]:
@@ -109,69 +105,75 @@ func _reconstruct_world(data: Dictionary):
 					var vertices: PackedVector2Array
 					
 					for coords in coords_set:
-						#print(coords)
 						vertices.append(Vector2(coords[0], coords[1]))
-						
-						#var newPoint = templatePoint.call_deferred("duplicate", true)
-						#newPoint.position = Vector3(coords[0], 0, coords[1])
-#
-						##self.add_child(newPoint)
-						#call_deferred("add_child", newPoint)
 					
-					draw_polygon(vertices, color)
+					draw_outline(vertices, outline_color, line_width)
 					
 	# World reconstructed. It's time to let the user interact and do stuff?
 	interfaceBackground.set_deferred("visible", false)
+
+func generate_random_string(length: int) -> String:
+	var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	var result = ""
 	
-func draw_polygon(points: PackedVector2Array, color: Color):
-	var indices = Geometry2D.triangulate_polygon(points)
-	
-	if indices.is_empty():
-		push_error("Failed to triangulate polygon. Make sure the points do not cross over each other!")
-		return
+	for i in range(length):
+		var random_index = randi() % chars.length()
+		result += chars[random_index]
 		
+	return result
+
+# Draws a closed border/outline for a ring of points instead of a filled polygon.
+# Built as a ribbon of small quads (rather than a raw line primitive) because
+# most Godot 4 renderers ignore GL line-width, so a real line would always be 1px
+# regardless of `line_width`. This way the thickness is controllable and consistent.
+func draw_outline(points: PackedVector2Array, color: Color = Color.WHITE, width: float = 0.05) -> void:
+	if points.size() < 2:
+		push_error("Not enough points to draw an outline.")
+		return
+	
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	
 	st.set_color(color)
 	
-	for i in range(0, indices.size(), 3):
-		# Get idx layout of one triangle
-		var idx1 = indices[i]
-		var idx2 = indices[i + 1]
-		var idx3 = indices[i + 2]
+	var point_count = points.size()
+	var half_width = width * 0.5
+	
+	for i in range(point_count):
+		var current = points[i]
+		var next = points[(i + 1) % point_count] # wraps around to close the loop
 		
-		# Pull down the 2D coords
-		var point1_2d = points[idx1]
-		var point2_2d = points[idx2]
-		var point3_2d = points[idx3]
+		if current.is_equal_approx(next):
+			continue
 		
-		# Converting Y axis to Z axis
-		var point1_3d = Vector3(point1_2d.x, 0, point1_2d.y)
-		var point2_3d = Vector3(point2_2d.x, 0, point2_2d.y)
-		var point3_3d = Vector3(point3_2d.x, 0, point3_2d.y)
+		var direction: Vector2 = (next - current).normalized()
+		var normal: Vector2 = Vector2(-direction.y, direction.x) * half_width
 		
-		# Calculate basic flat normals so lighting works...
-		# I guess...? I don't know man, this is weird as hell.
-		# Gemini said so so...
-		var normal = (point2_3d - point1_3d).cross(point3_3d - point1_3d).normalized()
+		var v1 = current + normal
+		var v2 = current - normal
+		var v3 = next + normal
+		var v4 = next - normal
 		
-		# Add vertex 1
-		st.set_normal(normal)
-		st.add_vertex(point1_3d)
+		var v1_3d = Vector3(v1.x, 0, v1.y)
+		var v2_3d = Vector3(v2.x, 0, v2.y)
+		var v3_3d = Vector3(v3.x, 0, v3.y)
+		var v4_3d = Vector3(v4.x, 0, v4.y)
 		
-		# Add vertex 2
-		st.set_normal(normal)
-		st.add_vertex(point2_3d)
+		# Two triangles forming this segment's quad
+		st.set_normal(Vector3.UP)
+		st.add_vertex(v1_3d)
+		st.add_vertex(v2_3d)
+		st.add_vertex(v3_3d)
 		
-		# Add vertex 3
-		st.set_normal(normal)
-		st.add_vertex(point3_3d)
+		st.set_normal(Vector3.UP)
+		st.add_vertex(v2_3d)
+		st.add_vertex(v4_3d)
+		st.add_vertex(v3_3d)
 		
 	var new_mesh = st.commit()
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
 	mesh_instance.mesh = new_mesh
 	mesh_instance.rotation = Vector3(0, 0, PI)
+	mesh_instance.name = "CountryMesh." + generate_random_string(6)
 	
 	var material: ORMMaterial3D = ORMMaterial3D.new()
 	material.albedo_color = color
@@ -181,8 +183,6 @@ func draw_polygon(points: PackedVector2Array, color: Color):
 	
 	mesh_instance.position = Vector3(0, 0, 0)
 	
-	#add_child(mesh_instance)
-	#print(points)
 	self.call_deferred("add_child", mesh_instance)
 		
 # Initiate connection part
