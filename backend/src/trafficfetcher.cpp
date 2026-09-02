@@ -7,7 +7,7 @@
 #include <fstream>
 
 // We need some debug about buffers
-#include <iostream>
+// #include <iostream>
 
 Console* Fetcher::g_logConsole = nullptr; // Gotta initialize this static variable to nullptr
                                           // cuz just declaring it in the class isnt enough and
