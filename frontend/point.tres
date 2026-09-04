@@ -2,3 +2,4 @@
 
 [resource]
 shading_mode = 0
+billboard_keep_scale = true

@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
     // std::cout << "Hi\n";
     // std::cin.get();
 
-    bool nomon = false;
+    // bool nomon = false;
     bool nocompression = false;
 
     // Parse the arguments at runtime
@@ -120,14 +120,14 @@ int main(int argc, char *argv[]) {
         std::string arg(argv[i]);
 
         if (arg == "--help" || arg == "-h") {
-            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n-n / --nomon : Disable AIS / ADS-B monitoring\n-nc / --nocompression : Disable compression in LWS (used in AIS fetching)");
+            console.print("There are a multitude of different arguments you can use with this little tool.\nThat includes:\n-h / --help : Display this help screen\n-v / --verbose : Display verbose logging\n-nc / --nocompression : Disable compression in LWS (used in AIS fetching)");
 
             return 0; // Just displaying the help screen
         } 
         
         else if (arg == "--verbose" || arg == "-v") console.setVerbosity(true);
 
-        else if (arg == "--nomon" || arg == "-n") nomon = true;
+        // else if (arg == "--nomon" || arg == "-n") nomon = true;
 
         else if (arg == "--nocompression" || arg == "--nc") nocompression = true;
 
@@ -146,31 +146,27 @@ int main(int argc, char *argv[]) {
         console.log("Maps data are fetched!", DEBUG_OK);
     }
 
-
-    SocketHost server(console);
     
     // std::thread serverThread([&server]() {
     //     // Lambda shyts
     //     server.run();
     // });
 
-    if (!nomon) {
-        Fetcher fetcher(AIS_STREAM_KEY, console, nocompression, dirPath / SAVED_DISCOVERY_PATH);
-        std::thread fetcherThread([&fetcher]() {
-            // Lambda shyts
-            fetcher.run();
-        });
+    Fetcher fetcher(AIS_STREAM_KEY, console, nocompression, dirPath / SAVED_DISCOVERY_PATH);
 
-        // Blocks here until the client connects, sends messages, and eventually disconnects.
-        server.run();
-        
-        fetcher.stop(); // Stop the fetcher when the server stops running
+    std::thread fetcherThread([&fetcher]() {
+        // Lambda shyts
+        fetcher.run();
+    });
 
-        if (fetcherThread.joinable()) fetcherThread.join(); // Make sure the server object's destructor is executed properly before being destroyed   
-    } else {
-        // Blocks here until the client connects, sends messages, and eventually disconnects.
-        server.run();
-    }
+    SocketHost server(console, fetcher);
+
+    // Blocks here until the client connects, sends messages, and eventually disconnects.
+    server.run();
+    
+    fetcher.stop(); // Stop the fetcher when the server stops running
+
+    if (fetcherThread.joinable()) fetcherThread.join(); // Make sure the server object's destructor is executed properly before being destroyed   
 
     // ~Renderer destructor will automatically run here.
     return 0;

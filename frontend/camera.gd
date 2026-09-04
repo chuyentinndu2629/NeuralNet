@@ -8,6 +8,9 @@ extends Camera3D
 @export var focusedRotation: Vector3
 @export var zoomStep: float
 @export var drag: float = 5.0  # how fast drag momentum decays after release (higher = stops sooner)
+@export var zoomCurve: Curve
+
+@export var mapView: Node3D
 
 var currentlyFocused: bool
 var focused: Vector3
@@ -26,6 +29,12 @@ func _ready() -> void:
 	currentlyFocused = false
 
 	currentZoom = 1.0
+
+func mapZoomValues(currentZoom: float):
+	if zoomCurve:
+		# Curve.sample() takes an X position (e.g. 0.0 to 1.0) and returns the Y value
+		return zoomCurve.sample(currentZoom)
+	return 0.0
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
@@ -56,21 +65,23 @@ func _process(delta: float) -> void:
 				drag_velocity = Vector3.ZERO
 
 			position = position.lerp(
-				Vector3(defaultPos.x, defaultPos.y * currentZoom, defaultPos.z),
+				Vector3(defaultPos.x, defaultPos.y * mapZoomValues(currentZoom), defaultPos.z),
 			lerpWeight * delta)
 			rotation.x = lerp_angle(rotation.x, defaultRotation.x / 180 * PI, lerpWeight * delta)
 			rotation.y = lerp_angle(rotation.y, defaultRotation.y / 180 * PI, lerpWeight * delta)
 			rotation.z = lerp_angle(rotation.z, defaultRotation.z / 180 * PI, lerpWeight * delta)
 
-func _focus(object: Node3D):
-	#print(object)
+func _focus(key: String):
+	print(key)
 	#if focused: focused.focused = false
 	currentlyFocused = true
-	focused = object.position
-	focusedId = object.name
+	focused = mapView.pointPositions[mapView.keyToIndex[key]];
+	focusedId = key
 	#focused.focused = true
+	
+	#mapView.multimeshNode.scale = Vector3.ONE * 0.5
 
-	get_node("/root/MapView").send_message(object.name)
+	get_node("/root/MapView").send_message(key)
 	#print(get_node("/root/MapView").name)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -82,7 +93,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				drag_velocity = Vector3.ZERO
 				last_ground_point = get_click_position_on_ground(event.position)
 				
-				var point = check_click_on_points(event.position)
+				var point = get_clicked_vessel_key(event.position)
 				if point:
 					#print("FOCUSING")
 					_focus(point)
@@ -125,18 +136,31 @@ func get_click_position_on_ground(screen_pos: Vector2) -> Variant:
 
 	return intersection # Vector3 if it hit, null if the ray is parallel to the plane
 	
-func check_click_on_points(screen_pos: Vector2) -> Node3D:
-	# When I click on data points like vessels or aircrafts
-	var ray_origin: Vector3 = project_ray_origin(screen_pos)
-	var ray_direction: Vector3 = project_ray_normal(screen_pos)
-	var to = ray_origin + ray_direction * 1000.0 # Ray length
-	
-	var space_state = get_world_3d().direct_space_state
-	var query = PhysicsRayQueryParameters3D.create(ray_origin, to)
-	var result = space_state.intersect_ray(query)
-	
-	if result:
-		var clicked_object = result.collider
-		return clicked_object
-	return null
+func get_clicked_vessel_key(screen_pos: Vector2, max_pixel_dist: float = 15.0) -> String:
+	var camera := get_viewport().get_camera_3d()
+	if not camera or mapView.pointPositions.is_empty():
+		return ""
+
+	var max_dist_sq: float = max_pixel_dist * max_pixel_dist
+	var closest_idx: int = -1
+	var min_dist_sq: float = INF
+	var total_points: int = mapView.multimesh.visible_instance_count
+
+	for i in range(total_points):
+		var world_pos: Vector3 = mapView.pointPositions[i]
+		
+		if camera.is_position_behind(world_pos):
+			continue
+			
+		var screen_p: Vector2 = camera.unproject_position(world_pos)
+		var dist_sq: float = screen_pos.distance_squared_to(screen_p)
+
+		if dist_sq < max_dist_sq and dist_sq < min_dist_sq:
+			min_dist_sq = dist_sq
+			closest_idx = i
+
+	if closest_idx != -1:
+		return mapView.indexToKey[closest_idx]
+		
+	return ""
 	

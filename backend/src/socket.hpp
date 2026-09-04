@@ -2,6 +2,7 @@
 
 #include "console.hpp"
 #include "consts.hpp"
+#include "trafficfetcher.hpp"
 
 #include <asio.hpp>
 
@@ -9,7 +10,7 @@ using asio::ip::tcp;
 
 class SocketHost : public std::enable_shared_from_this<SocketHost> {
     public:
-    SocketHost(Console& con);
+    SocketHost(Console& con, Fetcher& fetcher);
     ~SocketHost(); // Destructor
 
     void run(); // Start the event loop (ASIO). Stop when the client disconnects.
@@ -25,10 +26,13 @@ class SocketHost : public std::enable_shared_from_this<SocketHost> {
     // Setup the signal handler (SIGINT, SIGTERM)
     void handle_signals();
 
-    // Processing some things related to the main thing here.
+    // Processing requests from frontend client
     std::string handle_request(std::string req);
 
+    // Current console object
     Console& console;
+    // Current fetcher data - Linked directly to `handle_request()`
+    Fetcher& fetcher;
 
     // ASIO members (REQUIRED)
     asio::io_context io_context_;  // The main I/O context for asynchronous operations

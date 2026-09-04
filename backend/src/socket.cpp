@@ -1,4 +1,5 @@
 #include "socket.hpp"
+#include "trafficfetcher.hpp"
 
 #include <format>
 #include <filesystem>
@@ -6,7 +7,11 @@
 
 using asio::ip::tcp;
 
-SocketHost::SocketHost(Console& con) : console(con), acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::make_address(ADDR), PORT)), socket_(io_context_), signals_(io_context_, SIGINT, SIGTERM) {
+SocketHost::SocketHost(Console& con, Fetcher& fetcher) 
+: console(con), fetcher(fetcher),
+  acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::make_address(ADDR), PORT)), 
+  socket_(io_context_), signals_(io_context_, SIGINT, SIGTERM) {
+
     // Start listening for signals
     handle_signals();
 
@@ -92,7 +97,8 @@ void SocketHost::do_write(const std::string& msg) {
     // trying to stream the data.
 
     // This basically move the buffer (stealing its pointer) without copying the whole payload
-    auto data_ptr = std::make_shared<std::string>(std::string(msg + "\nEND\n"));
+    auto data_ptr = std::make_shared<std::string>(std::string(msg + "\nEND\n")); // \nEND\n is crude, but its all I've got. Maybe \0 woulve been better
+                                                                                 // but its godot's limitation.
     
     asio::async_write(socket_, asio::buffer(*data_ptr), 
         [this, data_ptr](std::error_code ec, std::size_t /*length*/) {
@@ -119,6 +125,12 @@ std::string SocketHost::handle_request(std::string req) {
         ss << worldData.rdbuf();
 
         return ss.str();
+    } else if (req == "query:AIS:updates") { 
+        json data;
+        data["type"] = "AISUpdates";
+        data["data"] = fetcher.getPending();
+
+        return data.dump();
     } else {
         return "{ \"type\":\"TestReturn\" }";
     }

@@ -7,6 +7,7 @@
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <filesystem>
+#include <unordered_set>
 
 using nlohmann::json;
 namespace fs = std::filesystem;
@@ -85,7 +86,7 @@ static double parseTimestamp(const std::string& s) {
 }
 
 class Fetcher {
-    public:
+public:
     // Fetcher/Websockets manager for AIS Stream and ADSB.LOL
     Fetcher(const std::string& __ais_stream_api_key, Console& con, const bool& nocompression = false, const fs::path& savedDiscoveryPath = fs::current_path() / "dscv.json");
     ~Fetcher();
@@ -97,7 +98,11 @@ class Fetcher {
     static int callback_ws(struct lws *wsi, enum lws_callback_reasons reason,
                            void *user, void *in, size_t len);
 
-    private:
+    // Pending updates stuff
+    void markPending(const unsigned int& mmsi);
+    json getPending();
+
+private:
     std::string __ais_stream_api_key;
     Console& console;
     json aisPayload;
@@ -123,6 +128,12 @@ class Fetcher {
 
     void loadDiscoveredData();
     void saveDiscoveredData();
+
+    // Updates of client queue. Everytime callback_ws update something and calls processAISData,
+    // we update that ship's data at MMSI, this variable mark that MMSI for update at frontend.
+    std::unordered_set<unsigned int> pendingUpdates;
+
+    std::mutex pendingUpdatesMutex; // mutex for pending updates
 
     // This function will process the received data from LWS that we got from AIS Stream.
     // Thank god AIS Stream exists.

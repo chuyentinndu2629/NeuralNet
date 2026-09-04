@@ -10,7 +10,11 @@ signal data_received(message: String)
 @export var statusDisplay: RichTextLabel
 @export var interfaceBackground: ColorRect
 
-@export var templatePoint: Node3D
+#@export var templatePoint: Node3D
+@export var pointMesh: Mesh # Assign a small SphereMesh, BoxMesh, or QuadMesh in the Inspector
+@export var pointMaterial: StandardMaterial3D
+
+@export var refetchInterval: float
 
 # --- Outline style controls ---
 #@export var outline_color: Color = Color.WHITE
@@ -26,7 +30,7 @@ func _ready() -> void:
 	interfaceBackground.visible = true
 	
 	# Initialize status tracking
-	statusDisplay.text = "Initializing client..."
+	#statusDisplay.text = "Initializing client..."
 	last_status = tcp_client.get_status()
 	
 	received_data_accumulated = ""
@@ -36,10 +40,18 @@ func _ready() -> void:
 	
 	reconstruction_thread = Thread.new()
 	
+	_setup_multimesh()
 	connect_to_server()
+
+var refetchTimePassed: float
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
+	# Add current delta time to refetch interval
+	refetchTimePassed += delta
+	
+	statusDisplay.text = "%.2f" % (1 / delta) + " FPS"
+	
 	# Continuously poll the socket status changes
 	tcp_client.poll()
 	var current_status = tcp_client.get_status()
@@ -59,13 +71,17 @@ func _process(delta: float) -> void:
 			if error_code == OK:
 				var message: String = byte_array.get_string_from_utf8()
 				emit_signal("data_received", message)
+		elif refetchTimePassed > refetchInterval:
+			# If there is no data to be received and refetch time passed comes
+			send_message("query:AIS:updates")
+			refetchTimePassed = 0
 
 # Returned data processing part
 # This part of the code handles when the data gets Received, parsed, and displayed.
 # Also is responsible for running query data when first connected to server
 func _proc_connection_established():
 	print("Connection established. Querying data first thing yeah")
-	statusDisplay.text += "\nQuerying world reconstruction data..."
+	#statusDisplay.text += "\nQuerying world reconstruction data..."
 	send_message("query:GEODATA")
 
 var received_data_accumulated: String = ""
@@ -77,11 +93,84 @@ func _proc_data_received(data: String):
 		received_data_accumulated += data.left(-5)
 		
 		var dataDict = JSON.parse_string(received_data_accumulated)
+		if not dataDict: return
+		
 		if (dataDict["type"] == "FeatureCollection"):
-			statusDisplay.text += "\nParsed data. [b][i]Reconstructing world[/i][/b]..."
+			#statusDisplay.text += "\nParsed data. [b][i]Reconstructing world[/i][/b]..."
 			reconstruction_thread.start(_reconstruct_world.bind(dataDict))
+		elif dataDict["type"] == "AISUpdates":
+			#statusDisplay.text += "\nAIS update.";
+			#print("AIS UPDATE: ", dataDict)
+			_update_ais(dataDict)
 			
 		received_data_accumulated = ""
+
+var multimesh_node: MultiMeshInstance3D
+var multimesh: MultiMesh
+
+# Lookup structures for 100k+ points
+var keyToIndex: Dictionary = {}        # vessel_id -> index
+var indexToKey: Array[String] = []     # index -> vessel_id
+var pointPositions: PackedVector3Array = PackedVector3Array() # For instant CPU click checks
+
+var bufferCapacity: int = 10000 # Initial capacity, grows dynamically
+
+func _setup_multimesh():
+	multimesh_node = MultiMeshInstance3D.new()
+	multimesh_node.position.y = 0.1
+	multimesh_node.material_override = pointMaterial;
+	multimesh = MultiMesh.new()
+	
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = pointMesh if pointMesh else SphereMesh.new()
+	multimesh.instance_count = bufferCapacity
+	multimesh.visible_instance_count = 0
+	
+	multimesh_node.multimesh = multimesh
+	add_child(multimesh_node)
+
+func _update_ais(data: Dictionary):
+	if not data.has("data") or not data["data"]: 
+		return
+		
+	var ais_data: Dictionary = data["data"]
+	
+	for key in ais_data:
+		var item: Dictionary = ais_data[key]
+		var pos := Vector3(-item["Lon"], 0, item["Lat"]) # Note: Ensure sign consistency for Lon
+		
+		if key not in keyToIndex:
+			_add_vessel(key, pos)
+		else:
+			_update_vessel(keyToIndex[key], pos)
+
+func _add_vessel(key: String, pos: Vector3):
+	var idx: int = indexToKey.size()
+	
+	# Grow internal buffer in chunks if capacity limit is reached
+	if idx >= multimesh.instance_count:
+		bufferCapacity *= 2
+		multimesh.instance_count = bufferCapacity
+
+	keyToIndex[key] = idx
+	indexToKey.append(key)
+	pointPositions.append(pos)
+	
+	var basis_up := Basis().rotated(Vector3.RIGHT, deg_to_rad(-90.0))
+	
+	# Set transform on GPU
+	var t := Transform3D(basis_up, pos)
+	multimesh.set_instance_transform(idx, t)
+	
+	# Reveal newly added instance
+	multimesh.visible_instance_count = indexToKey.size()
+
+func _update_vessel(idx: int, pos: Vector3):
+	pointPositions[idx] = pos
+	
+	var basis_up := Basis().rotated(Vector3.RIGHT, deg_to_rad(-90.0))
+	var t := Transform3D(basis_up, pos)
+	multimesh.set_instance_transform(idx, t)
 
 func _reconstruct_world(data: Dictionary):
 	#var templatePointDeferred = templatePoint.call_deferred("duplicate", true)
@@ -188,11 +277,11 @@ func draw_outline(points: PackedVector2Array, color: Color = Color.WHITE, width:
 # Initiate connection part
 func connect_to_server() -> void:
 	print("Connecting to %s:%d..." % [HOST, PORT])
-	statusDisplay.text = "Connecting to %s:%d" % [HOST, PORT]
+	#statusDisplay.text = "Connecting to %s:%d" % [HOST, PORT]
 	var error = tcp_client.connect_to_host(HOST, PORT)
 	if error != OK:
 		print("Failed to initialize connection attempt: ", error)
-		statusDisplay.text = "Failed to initialize connection attempt: " + error
+		#statusDisplay.text = "Failed to initialize connection attempt: " + error
 
 # Send string data encoded in UTF-8
 func send_message(message: String) -> void:
@@ -211,23 +300,23 @@ func _on_status_changed(new_status: int) -> void:
 			interfaceBackground.visible = true
 			
 			print("Disconnected from server.")
-			statusDisplay.text = "Disconnected."
+			#statusDisplay.text = "Disconnected."
 			emit_signal("connection_closed")
 		StreamPeerTCP.STATUS_CONNECTING:
 			interfaceBackground.visible = true
 			
 			print("Connecting...")
-			statusDisplay.text = "Connecting..."
+			#statusDisplay.text = "Connecting..."
 		StreamPeerTCP.STATUS_CONNECTED:
 			print("Successfully connected to server!")
-			statusDisplay.text = "[color=green]Connected[/color] to server."
+			#statusDisplay.text = "[color=green]Connected[/color] to server."
 			tcp_client.set_no_delay(true) # Disables Nagle's algorithm for reduced latency
 			emit_signal("connection_established")
 		StreamPeerTCP.STATUS_ERROR:
 			interfaceBackground.visible = true
 			
 			print("Connection error encountered.")
-			statusDisplay.text = "Connection error. Closed."
+			#statusDisplay.text = "Connection error. Closed."
 			emit_signal("connection_closed")
 
 func _exit_tree() -> void:

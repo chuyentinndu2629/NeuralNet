@@ -7,6 +7,8 @@
 [ext_resource type="Material" uid="uid://bt48qd1ywfwr6" path="res://point.tres" id="4_l1o8s"]
 [ext_resource type="FontFile" uid="uid://coubgs2rtbuva" path="res://JetBrainsMono-Italic.ttf" id="4_vr8e8"]
 
+[sub_resource type="QuadMesh" id="QuadMesh_n3lwg"]
+
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_61tb2"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
 ground_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -19,14 +21,18 @@ background_mode = 1
 sky = SubResource("Sky_51ccw")
 glow_enabled = true
 
-[sub_resource type="BoxMesh" id="BoxMesh_370by"]
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_wu3fl"]
+[sub_resource type="Curve" id="Curve_pl0cs"]
+_limits = [0.0, 2.0, 0.0, 2.0]
+_data = [Vector2(0, 0), 0.0, 0.24594252, 0, 0, Vector2(1.2994924, 0.6741574), 0.95917577, 0.95917577, 0, 0, Vector2(2, 2), 3.96097, 0.0, 0, 0]
+point_count = 3
 
 [node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("statusDisplay", "interfaceBackground")]
 script = ExtResource("1_mqhvm")
 statusDisplay = NodePath("CanvasLayer/Control/StatusDisplay")
 interfaceBackground = NodePath("CanvasLayer/Control/Background")
+pointMesh = SubResource("QuadMesh_n3lwg")
+pointMaterial = ExtResource("4_l1o8s")
+refetchInterval = 2.0
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=927780468]
 
@@ -65,7 +71,7 @@ text = "StatusDisplay"
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=256563181]
 environment = SubResource("Environment_l1o8s")
 
-[node name="Camera3D" type="Camera3D" parent="." unique_id=750662280]
+[node name="Camera3D" type="Camera3D" parent="." unique_id=750662280 node_paths=PackedStringArray("mapView")]
 transform = Transform3D(-1, -7.642742e-15, 8.742278e-08, 0, -1, -8.742278e-08, 8.742278e-08, -8.742278e-08, 1, 0, 20, -20)
 current = true
 script = ExtResource("2_61tb2")
@@ -76,16 +82,7 @@ defaultRotation = Vector3(-90, 180, 0)
 focusedOffset = Vector3(0, 8.5, -8.5)
 focusedRotation = Vector3(-45, 180, 0)
 zoomStep = 0.1
+zoomCurve = SubResource("Curve_pl0cs")
+mapView = NodePath("..")
 
-[node name="StaticBody3D" type="StaticBody3D" parent="." unique_id=350179945]
-visible = false
-
-[node name="Cube" type="MeshInstance3D" parent="StaticBody3D" unique_id=2015495381]
-layers = 512
-gi_mode = 0
-mesh = SubResource("BoxMesh_370by")
-surface_material_override/0 = ExtResource("4_l1o8s")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="StaticBody3D" unique_id=1925784997]
-transform = Transform3D(1.1, 0, 0, 0, 1.1, 0, 0, 0, 1.1, 0, 0, 0)
-shape = SubResource("BoxShape3D_wu3fl")
+[node name="Node3D" type="Node3D" parent="." unique_id=1754678425]

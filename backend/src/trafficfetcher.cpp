@@ -2,7 +2,9 @@
 #include "console.hpp"
 
 #include <libwebsockets.h>
+#include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <fstream>
 
@@ -30,6 +32,9 @@ Fetcher::Fetcher(const std::string& __ais_stream_api_key, Console& con, const bo
     console.log("Loaded JSON payload: " + aisPayload.dump(), DEBUG_OK);
 
     loadDiscoveredData();
+
+    // Reserving for 10^6 ships (even tho there are only 10^5 ships active, some overhead is always the best)
+    pendingUpdates.reserve(1e6);
 
     rxBuffer.clear();
 }
@@ -169,6 +174,8 @@ void Fetcher::loadDiscoveredData() {
         currentShip.assignedMode = shipEntry.value()["AssignedMode"];
 
         aisVessels[std::stoi(shipEntry.key())] = currentShip;
+        
+        markPending(currentShip.mmsi);
     }
 
     console.log("Parsed last session's discovered data.", DEBUG_OK);
@@ -367,6 +374,8 @@ void Fetcher::processAISData(const json& data) {
         // We use this since 
         currentShip.lastUpdated = static_cast<unsigned long>(parseTimestamp(data["MetaData"]["time_utc"].get<std::string>()));
 
+        pendingUpdates.insert(mmsi);
+
         // Now to the main course
         json message = data["Message"][data["MessageType"]];
         if (!message["Valid"].get<bool>()) return; // Invalid data, skip processing
@@ -528,4 +537,38 @@ void Fetcher::processAISData(const json& data) {
         // Saving into the discovered map
         aisVessels[mmsi] = currentShip;
     }
+}
+
+void Fetcher::markPending(const unsigned int& mmsi) {
+    std::lock_guard<std::mutex> lock(pendingUpdatesMutex);
+    pendingUpdates.insert(mmsi);
+}
+
+json Fetcher::getPending() {
+    std::unique_lock<std::mutex> lock(pendingUpdatesMutex);
+
+    // lock.lock(); unique_lock acts the same as std::lock_guard by default it seems? Tho unique_lock gives me more leeway
+    // to modify it whenever I want with its lock() and unlock() methods.
+    std::vector<unsigned int> pendings;
+
+    pendings.reserve(1e6);
+    std::unordered_set<unsigned int>::iterator it = pendingUpdates.begin();
+    while (it != pendingUpdates.end()) {
+        pendings.push_back(std::move(pendingUpdates.extract(it++).value()));
+    }
+
+    lock.unlock();
+
+    // We got the vector now. We just need to create a json for it.
+    json returnData;
+    for (const unsigned int& mmsi : pendings) {
+        json data;
+        // data["MMSI"] = mmsi;
+        data["Lon"] = aisVessels[mmsi].lon;
+        data["Lat"] = aisVessels[mmsi].lat;
+
+        returnData[std::to_string(mmsi)] = data;
+    }
+
+    return returnData;
 }
