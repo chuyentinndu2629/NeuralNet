@@ -283,6 +283,8 @@ int Fetcher::callback_ws(struct lws *wsi, enum lws_callback_reasons reason,
             if (lws_is_final_fragment(wsi)) {
                 try {
                     json data = json::parse(fetcher->rxBuffer);
+                    
+                    lws_validity_confirmed(wsi);
                     fetcher->processAISData(data);
                 } catch (const nlohmann::json::exception& e) {
                     fetcher->console.log(std::string("LWS: Received data JSON parsing error: ") + e.what() + ". Given string: " + fetcher->rxBuffer, DEBUG_FAIL);
@@ -571,4 +573,8 @@ json Fetcher::getPending() {
     }
 
     return returnData;
+}
+
+ship Fetcher::getAISVessel(unsigned int mmsi) {
+    return aisVessels[mmsi];
 }

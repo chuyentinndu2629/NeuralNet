@@ -114,6 +114,7 @@ void SocketHost::do_write(const std::string& msg) {
 
 
 std::string SocketHost::handle_request(std::string req) {
+    // lws_validity_confirmed(wsi);
     if (req == "query:GEODATA") {
         std::ifstream worldData(std::filesystem::current_path() / WORLD_GEOJSON_PATH);
 
@@ -131,7 +132,61 @@ std::string SocketHost::handle_request(std::string req) {
         data["data"] = fetcher.getPending();
 
         return data.dump();
+    } else if (req.starts_with("query:AIS:MMSI:")) {
+        unsigned int mmsi = std::stoi(req.substr(15));
+        ship vesselEntry = fetcher.getAISVessel(mmsi);
+
+        json data;
+        data["type"] = "AISInfo";
+
+        data["data"]["MMSI"]       = vesselEntry.mmsi;
+        data["data"]["IMO"]        = vesselEntry.imo;
+        data["data"]["AISVersion"] = vesselEntry.aisVersion;
+        data["data"]["Name"]       = vesselEntry.shipName;
+        data["data"]["CallSign"]   = vesselEntry.callSign;
+        data["data"]["Type"]       = vesselEntry.shipType;
+
+        data["data"]["Dimension"]["Length"] = vesselEntry.dimension.length;
+        data["data"]["Dimension"]["Beam"]   = vesselEntry.dimension.beam;
+
+        data["data"]["ETA"]["Month"]  = vesselEntry.eta.month;
+        data["data"]["ETA"]["Day"]    = vesselEntry.eta.day;
+        data["data"]["ETA"]["Hour"]   = vesselEntry.eta.hour;
+        data["data"]["ETA"]["Minute"] = vesselEntry.eta.minute;
+
+        data["data"]["Destination"] = vesselEntry.dest;
+
+        data["data"]["Latitude"]             = vesselEntry.lat;
+        data["data"]["Longtitude"]           = vesselEntry.lon;
+        data["data"]["NavigationalStatus"]   = vesselEntry.navStatus;
+        data["data"]["MaximumStaticDraught"] = vesselEntry.maximumStaticDraught;
+
+        data["data"]["ROT"]         = vesselEntry.rot;
+        data["data"]["SOG"]         = vesselEntry.sog;
+        data["data"]["COG"]         = vesselEntry.cog;
+        data["data"]["TrueHeading"] = vesselEntry.trueHeading;
+
+        data["data"]["LastUpdated"] = vesselEntry.lastUpdated;
+
+        data["data"]["PositionAccuracy"] = vesselEntry.positionAccuracy;
+        data["data"]["SpecialManoeuvre"] = vesselEntry.specialManoeuvre;
+        data["data"]["Raim"]             = vesselEntry.raim;
+        data["data"]["FixType"]          = vesselEntry.fixType;
+        data["data"]["DTE"]              = vesselEntry.dte;
+
+        data["data"]["ClassB"]["Unit"]           = vesselEntry.classB.unit;
+        data["data"]["ClassB"]["Display"]        = vesselEntry.classB.display;
+        data["data"]["ClassB"]["DSC"]            = vesselEntry.classB.dsc;
+        data["data"]["ClassB"]["Band"]           = vesselEntry.classB.band;
+        data["data"]["ClassB"]["Msg22"]          = vesselEntry.classB.msg22;
+        data["data"]["ClassB"]["VendorIDName"]   = vesselEntry.classB.vendorIDName;
+        data["data"]["ClassB"]["VendorIDModel"]  = vesselEntry.classB.vendorIDModel;
+        data["data"]["ClassB"]["vendorIDSerial"] = vesselEntry.classB.vendorIDSerial;
+
+        data["data"]["AssignedMode"] = vesselEntry.assignedMode;
+
+        return data.dump();
     } else {
-        return "{ \"type\":\"TestReturn\" }";
+        return "{ \"type\":\"NoReturn\" }";
     }
 }

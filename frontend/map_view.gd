@@ -7,8 +7,14 @@ signal data_received(message: String)
 @export var HOST: String = "127.0.0.1"
 @export var PORT: int = 6253
 
+@export var camera: Camera3D
+
 @export var statusDisplay: RichTextLabel
+@export var topObjectPopup: RichTextLabel
+@export var topObjectPopupWidth: float
 @export var interfaceBackground: ColorRect
+
+@export var interfaceAnimWeight: float
 
 #@export var templatePoint: Node3D
 @export var pointMesh: Mesh # Assign a small SphereMesh, BoxMesh, or QuadMesh in the Inspector
@@ -44,13 +50,14 @@ func _ready() -> void:
 	connect_to_server()
 
 var refetchTimePassed: float
+var currentShipMetadata: Dictionary
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	# Add current delta time to refetch interval
 	refetchTimePassed += delta
 	
-	statusDisplay.text = "%.2f" % (1 / delta) + " FPS"
+	statusDisplay.text = "%.2f" % (1 / delta) + " FPS (" + ("%.2f" % (delta * 1000)) + " ms)"
 	
 	# Continuously poll the socket status changes
 	tcp_client.poll()
@@ -75,6 +82,34 @@ func _process(delta: float) -> void:
 			# If there is no data to be received and refetch time passed comes
 			send_message("query:AIS:updates")
 			refetchTimePassed = 0
+			
+	
+	if camera.currentlyFocused:
+		topObjectPopup.visible = true
+		if topObjectPopup.size.x < topObjectPopupWidth - 2.1:
+			topObjectPopup.size.x = lerp(topObjectPopup.size.x, topObjectPopupWidth, interfaceAnimWeight * delta)
+			topObjectPopup.offset_transform_position.x = (topObjectPopupWidth - topObjectPopup.size.x) / 2 + (-topObjectPopupWidth / 2)
+			topObjectPopup.text = "[ ... ]"
+		else:
+			topObjectPopup.size.x = topObjectPopupWidth
+			topObjectPopup.offset_transform_position.x = -topObjectPopupWidth / 2
+			if currentShipMetadata:
+				if currentShipMetadata["Name"]:
+					topObjectPopup.text = currentShipMetadata["Name"].strip_edges()
+				elif currentShipMetadata["IMO"]:
+					topObjectPopup.text = "IMO: " + str(currentShipMetadata["IMO"])
+				else:
+					topObjectPopup.text = "MMSI: " + str(currentShipMetadata["MMSI"])
+	else:
+		#print(topObjectPopup.size.x)
+		if topObjectPopup.size.x > 2.1:
+			topObjectPopup.text = "[ CLOSED ]"
+			topObjectPopup.size.x = lerp(topObjectPopup.size.x, 0.0, interfaceAnimWeight * delta)
+			
+			# FIX: Changed 200 to topObjectPopupWidth to match the opening animation
+			topObjectPopup.offset_transform_position.x = (topObjectPopupWidth - topObjectPopup.size.x) / 2 + (-topObjectPopupWidth / 2)
+		else: 
+			topObjectPopup.visible = false
 
 # Returned data processing part
 # This part of the code handles when the data gets Received, parsed, and displayed.
@@ -102,6 +137,8 @@ func _proc_data_received(data: String):
 			#statusDisplay.text += "\nAIS update.";
 			#print("AIS UPDATE: ", dataDict)
 			_update_ais(dataDict)
+		elif dataDict["type"] == "AISInfo":
+			currentShipMetadata = dataDict["data"]
 			
 		received_data_accumulated = ""
 
@@ -171,6 +208,11 @@ func _update_vessel(idx: int, pos: Vector3):
 	var basis_up := Basis().rotated(Vector3.RIGHT, deg_to_rad(-90.0))
 	var t := Transform3D(basis_up, pos)
 	multimesh.set_instance_transform(idx, t)
+	
+func focus_vessel(mmsi: String):
+	currentShipMetadata = {}
+	print(mmsi)
+	send_message("query:AIS:MMSI:" + mmsi)
 
 func _reconstruct_world(data: Dictionary):
 	#var templatePointDeferred = templatePoint.call_deferred("duplicate", true)

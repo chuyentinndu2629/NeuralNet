@@ -102,6 +102,9 @@ public:
     void markPending(const unsigned int& mmsi);
     json getPending();
 
+    // Getting AIS vessel info
+    ship getAISVessel(unsigned int mmsi);
+
 private:
     std::string __ais_stream_api_key;
     Console& console;

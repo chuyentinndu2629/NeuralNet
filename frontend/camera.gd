@@ -72,7 +72,8 @@ func _process(delta: float) -> void:
 			rotation.z = lerp_angle(rotation.z, defaultRotation.z / 180 * PI, lerpWeight * delta)
 
 func _focus(key: String):
-	print(key)
+	#print(key)
+	mapView.focus_vessel(key)
 	#if focused: focused.focused = false
 	currentlyFocused = true
 	focused = mapView.pointPositions[mapView.keyToIndex[key]];
@@ -81,7 +82,7 @@ func _focus(key: String):
 	
 	#mapView.multimeshNode.scale = Vector3.ONE * 0.5
 
-	get_node("/root/MapView").send_message(key)
+	#get_node("/root/MapView").send_message(key)
 	#print(get_node("/root/MapView").name)
 
 func _unhandled_input(event: InputEvent) -> void:

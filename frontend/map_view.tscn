@@ -4,10 +4,15 @@
 [ext_resource type="Script" uid="uid://dbr5vst47gaes" path="res://camera.gd" id="2_61tb2"]
 [ext_resource type="FontFile" uid="uid://bjw51f2n8bmn0" path="res://JetBrainsMono-Bold.ttf" id="2_oba8r"]
 [ext_resource type="FontFile" uid="uid://7y7rbrch5atk" path="res://JetBrainsMono-BoldItalic.ttf" id="3_622ag"]
-[ext_resource type="Material" uid="uid://bt48qd1ywfwr6" path="res://point.tres" id="4_l1o8s"]
 [ext_resource type="FontFile" uid="uid://coubgs2rtbuva" path="res://JetBrainsMono-Italic.ttf" id="4_vr8e8"]
+[ext_resource type="FontFile" uid="uid://b1j65b1dgnvis" path="res://JetBrainsMono-Regular.ttf" id="6_oba8r"]
+[ext_resource type="StyleBox" uid="uid://bkfnuy752di42" path="res://popup.tres" id="7_622ag"]
 
 [sub_resource type="QuadMesh" id="QuadMesh_n3lwg"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_fyrkv"]
+shading_mode = 0
+billboard_keep_scale = true
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_61tb2"]
 sky_horizon_color = Color(0.66224277, 0.6717428, 0.6867428, 1)
@@ -26,12 +31,16 @@ _limits = [0.0, 2.0, 0.0, 2.0]
 _data = [Vector2(0, 0), 0.0, 0.24594252, 0, 0, Vector2(1.2994924, 0.6741574), 0.95917577, 0.95917577, 0, 0, Vector2(2, 2), 3.96097, 0.0, 0, 0]
 point_count = 3
 
-[node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("statusDisplay", "interfaceBackground")]
+[node name="MapView" type="Node3D" unique_id=1207174137 node_paths=PackedStringArray("camera", "statusDisplay", "topObjectPopup", "interfaceBackground")]
 script = ExtResource("1_mqhvm")
+camera = NodePath("Camera3D")
 statusDisplay = NodePath("CanvasLayer/Control/StatusDisplay")
+topObjectPopup = NodePath("CanvasLayer/Control/TopObjectPopup")
+topObjectPopupWidth = 250.0
 interfaceBackground = NodePath("CanvasLayer/Control/Background")
+interfaceAnimWeight = 20.0
 pointMesh = SubResource("QuadMesh_n3lwg")
-pointMaterial = ExtResource("4_l1o8s")
+pointMaterial = SubResource("StandardMaterial3D_fyrkv")
 refetchInterval = 2.0
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=927780468]
@@ -67,6 +76,32 @@ theme_override_fonts/bold_italics_font = ExtResource("3_622ag")
 theme_override_fonts/italics_font = ExtResource("4_vr8e8")
 bbcode_enabled = true
 text = "StatusDisplay"
+
+[node name="TopObjectPopup" type="RichTextLabel" parent="CanvasLayer/Control" unique_id=1414869468]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -1.0
+offset_top = -20.0
+offset_right = 1.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset_ratio = Vector2(0.5, 0.5)
+offset_transform_enabled = true
+offset_transform_position = Vector2(0, -60.72)
+theme_override_fonts/normal_font = ExtResource("6_oba8r")
+theme_override_fonts/bold_font = ExtResource("2_oba8r")
+theme_override_fonts/bold_italics_font = ExtResource("3_622ag")
+theme_override_fonts/italics_font = ExtResource("4_vr8e8")
+theme_override_fonts/mono_font = ExtResource("6_oba8r")
+theme_override_styles/normal = ExtResource("7_622ag")
+autowrap_mode = 0
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=256563181]
 environment = SubResource("Environment_l1o8s")
